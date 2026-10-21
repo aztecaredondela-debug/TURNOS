@@ -1,15 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum } from "./ciclo.js";
+import { firebaseConfig } from "./firebase-config.js?v=4";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum } from "./ciclo.js?v=4";
 
-// Si cualquier guardado falla (reglas, conexión...), se avisa en pantalla en vez de fallar en silencio
-window.addEventListener("unhandledrejection", e => alert("No se pudo guardar: " + (e.reason?.message || e.reason)));
+const VERSION = 4;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const $ = id => document.getElementById(id);
+$("ver").textContent = "Versión " + VERSION;
 
 // Crea elementos con textContent/append: el texto de otros usuarios nunca se interpreta como HTML
 function h(tag, props = {}, ...kids) {
@@ -96,7 +96,7 @@ $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1);
 /* ---------- Calendario ---------- */
 function solsAbiertas() {
   const hoy = hoyIso();
-  return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
+  return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy && ops[s.solicitante]).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
 }
 
 function renderCal() {
@@ -203,7 +203,8 @@ async function ofrecer(sid, s, dev) {
 }
 
 async function aceptar(sid, oid) {
-  const s = sols[sid], dev = s.ofertas[oid].dev, D = s.fecha;
+  const s = sols[sid], dev = s.ofertas?.[oid]?.dev, D = s.fecha;
+  if (!ops[oid]) return alert("Ese compañero ya no existe.");
   // Se revalida con el estado actual por si los turnos cambiaron desde la oferta
   if (!esLibre(turnoEf(oid, D))) return alert(`${nom(oid)} ya no libra ese día.`);
   if (dev && (!trabaja(turnoEf(oid, dev)) || !esLibre(turnoEf(me, dev)))) return alert("La devolución ya no es válida.");
@@ -305,14 +306,19 @@ async function borrarOp(id) {
 /* ---------- Render global y suscripciones ---------- */
 function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderSol(); renderAus(); renderEq(); }
 
+const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
+
 signInAnonymously(getAuth(app)).then(() => {
   onValue(ref(db, "operarios"), s => {
     ops = s.val() || {}; pintarSelectorOperarios();
     if (me && !ops[me] && !$("mainArea").hidden) { localStorage.removeItem("turnos_me"); alert("Tu usuario ha sido eliminado."); location.reload(); return; }
     if (me && ops[me] && $("mainArea").hidden) entrar(me); else render();
-  });
-  onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); });
-  onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); });
-  onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); });
-  onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); });
-}).catch(e => { $("loginMsg").textContent = "Error de conexión: " + e.message; });
+  }, errLectura("operarios"));
+  onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); }, errLectura("notas"));
+  onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); }, errLectura("cambios"));
+  onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); }, errLectura("ausencias"));
+  onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); }, errLectura("solicitudes"));
+}).catch(e => {
+  const m = "No se pudo conectar con Firebase: " + e.message + ". ¿Está activado el acceso Anónimo?";
+  $("loginMsg").textContent = m; window.mostrarError?.(m);
+});
