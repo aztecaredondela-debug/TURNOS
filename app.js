@@ -4,6 +4,9 @@ import { getDatabase, ref, set, push, update, onValue, runTransaction } from "ht
 import { firebaseConfig } from "./firebase-config.js";
 import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum } from "./ciclo.js";
 
+// Si cualquier guardado falla (reglas, conexión...), se avisa en pantalla en vez de fallar en silencio
+window.addEventListener("unhandledrejection", e => alert("No se pudo guardar: " + (e.reason?.message || e.reason)));
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const $ = id => document.getElementById(id);
@@ -85,7 +88,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus";
+  $("viewCal").hidden = tab !== "cal"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq";
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
 $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1); render(); };
@@ -248,12 +251,64 @@ function renderAus() {
     } }, "Quitar")) : null)));
 }
 
+/* ---------- Administración del equipo (solo con operarios/{id}/admin = true) ---------- */
+function renderEq() {
+  const esAdmin = !!ops[me]?.admin;
+  $("tabEq").hidden = !esAdmin;
+  const cont = $("viewEq"); cont.innerHTML = "";
+  if (!esAdmin) { if (tab === "eq") document.querySelector('[data-tab="cal"]').click(); return; }
+  cont.append(h("label", {}, `Equipo (${Object.keys(ops).length})`));
+  Object.entries(ops).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre, "es")).forEach(([id, o]) =>
+    cont.append(h("div", { class: "sol eq" }, h("b", {}, o.nombre + (o.admin ? " ★" : "")),
+      h("div", { class: "acc" },
+        h("button", { class: "sec", onclick: () => editarOp(id), "aria-label": "Editar " + o.nombre }, "✏️"),
+        id === me ? null : h("button", { class: "bad", onclick: () => borrarOp(id), "aria-label": "Eliminar " + o.nombre }, "✕")))));
+}
+
+function editarOp(id) {
+  const o = ops[id], body = $("modalBody"); body.innerHTML = "";
+  const nombre = h("input", { value: o.nombre, maxlength: "30" });
+  const fr = h("input", { type: "date", value: o.ref });
+  const sel = h("select");
+  for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
+  sel.value = o.idx;
+  const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
+  body.append(h("h3", {}, "Editar compañero"),
+    h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
+    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("div", { class: "row" },
+      h("button", { class: "ok", onclick: async () => {
+        if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
+        if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
+        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
+        if (pin.value) datos.pinHash = await hashPin(pin.value, id);
+        await update(ref(db, "operarios/" + id), datos);
+        cerrar();
+      } }, "Guardar"),
+      h("button", { class: "sec", onclick: cerrar }, "Cancelar")));
+  $("modal").hidden = false;
+}
+
+async function borrarOp(id) {
+  if (!confirm(`¿Eliminar a ${nom(id)}? Se borrarán también sus notas, ausencias, cambios y solicitudes.`)) return;
+  const up = { ["operarios/" + id]: null };
+  for (const [f, p] of Object.entries(notas)) if (p[id] !== undefined) up[`notas/${f}/${id}`] = null;
+  for (const [f, p] of Object.entries(cambios)) if (p[id] !== undefined) up[`cambios/${f}/${id}`] = null;
+  for (const [f, p] of Object.entries(ausencias)) if (p[id] !== undefined) up[`ausencias/${f}/${id}`] = null;
+  for (const [sid, s] of Object.entries(sols)) {
+    if (s.solicitante === id) up[`solicitudes/${sid}`] = null;
+    else if (s.ofertas?.[id]) up[`solicitudes/${sid}/ofertas/${id}`] = null;
+  }
+  await update(ref(db), up);
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; renderCal(); renderSol(); renderAus(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderSol(); renderAus(); renderEq(); }
 
 signInAnonymously(getAuth(app)).then(() => {
   onValue(ref(db, "operarios"), s => {
     ops = s.val() || {}; pintarSelectorOperarios();
+    if (me && !ops[me] && !$("mainArea").hidden) { localStorage.removeItem("turnos_me"); alert("Tu usuario ha sido eliminado."); location.reload(); return; }
     if (me && ops[me] && $("mainArea").hidden) entrar(me); else render();
   });
   onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); });
