@@ -7,6 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="errBar" hidden></div>
+<script>
+  // Muestra cualquier fallo en pantalla (incluidos los de carga del módulo)
+  function mostrarError(m){var b=document.getElementById("errBar");if(b){b.textContent="⚠️ "+m+" (toca para cerrar)";b.hidden=false;b.onclick=function(){b.hidden=true;};}}
+  window.addEventListener("error",function(e){mostrarError(e.message||"Error al cargar la aplicación");});
+  window.addEventListener("unhandledrejection",function(e){mostrarError("No se pudo guardar: "+((e.reason&&e.reason.message)||e.reason));});
+</script>
 <div class="app-container"><div class="card">
   <h1>Mantenimiento</h1>
 
@@ -55,8 +62,9 @@
     <div id="viewEq" hidden></div>
   </div>
 </div></div>
+<div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>
