@@ -46,3 +46,8 @@ button{font-family:inherit}
 .sol small{color:#888;display:block;margin-top:4px}
 .sol input{margin:8px 0 0;padding:8px}
 .vacio{color:#888;text-align:center;padding:20px 0}
+.aus-shift{border-color:#ff6b9d;color:#ff6b9d;background:rgba(255,107,157,.1)}
+.grupo.aus b{color:#ff6b9d}
+.cambio{font-size:.85rem;color:var(--color-t);margin:4px 0}
+.tabs button{font-size:.8rem;padding:10px 4px}
+#listaAus{margin-top:15px}
