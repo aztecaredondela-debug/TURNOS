@@ -5,7 +5,7 @@
     "operarios": {
       "$id": {
         ".write": "auth != null",
-        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
+        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('admin').val() == data.child('admin').val() && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
       }
     },
     "notas": {
