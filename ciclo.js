@@ -7,7 +7,7 @@ export const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, "0")}-${String
 export const hoyIso = () => { const n = new Date(); return iso(n.getFullYear(), n.getMonth(), n.getDate()); };
 
 // Días absolutos en UTC: inmune al cambio de hora de verano/invierno
-const dayNum = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
+export const dayNum = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
 
 // op = { ref: "yyyy-mm-dd", idx: 0..69 }
 export function turnoCiclo(op, fecha) {
@@ -17,4 +17,16 @@ export function turnoCiclo(op, fecha) {
 }
 // LC = libre por cambio de turno
 export const esLibre = t => t === "DS" || t === "DF" || t === "LC";
-export const tipoTurno = t => (esLibre(t) ? "libre" : t[0].toLowerCase()); // m | t | n | libre
+// V = vacaciones, B = baja
+export const tipoTurno = t => (t === "V" || t === "B" ? "aus" : esLibre(t) ? "libre" : t[0].toLowerCase()); // m | t | n | libre | aus
+export const trabaja = t => ["m", "t", "n"].includes(tipoTurno(t));
+
+// Lista de fechas ISO entre dos fechas, ambas incluidas
+export function rango(desde, hasta) {
+  const out = [];
+  for (let t = dayNum(desde) * 86400000, fin = dayNum(hasta) * 86400000; t <= fin; t += 86400000) {
+    const d = new Date(t);
+    out.push(iso(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+  return out;
+}
