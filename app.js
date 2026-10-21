@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno } from "./ciclo.js";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum } from "./ciclo.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -18,14 +18,16 @@ function h(tag, props = {}, ...kids) {
   return e;
 }
 
-let ops = {}, notas = {}, cambios = {}, sols = {};
+let ops = {}, notas = {}, cambios = {}, sols = {}, ausencias = {};
 let me = localStorage.getItem("turnos_me");
 let view = new Date(), tab = "cal", modalFecha = null;
 
 const nom = id => ops[id]?.nombre ?? "?";
-const turnoEf = (id, f) => cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
+// Prioridad: ausencia > cambio de turno > ciclo
+const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
+const etiq = t => ({ V: "VAC", B: "BAJA" })[t] ?? t;
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
-const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift" })[tipoTurno(t)];
+const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
 async function hashPin(pin, salt) {
   const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin));
@@ -83,7 +85,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewSol").hidden = tab !== "sol";
+  $("viewCal").hidden = tab !== "cal"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus";
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
 $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1); render(); };
@@ -106,8 +108,8 @@ function renderCal() {
     const f = iso(a, m, d), t = turnoEf(me, f);
     const hayNota = notas[f] && Object.keys(notas[f]).length;
     const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}`, onclick: () => abrirDia(f) },
-      h("span", {}, String(d)), h("b", {}, t),
-      h("div", { class: "icons" }, (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "")));
+      h("span", {}, String(d)), h("b", {}, etiq(t)),
+      h("div", { class: "icons" }, (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
     grid.append(cell);
   }
 }
@@ -120,14 +122,24 @@ $("modal").onclick = e => { if (e.target === $("modal")) cerrar(); };
 function renderModal() {
   const f = modalFecha, body = $("modalBody"); body.innerHTML = "";
   const mio = turnoEf(me, f);
-  body.append(h("h3", {}, fmt(f)), h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, mio)));
+  body.append(h("h3", {}, fmt(f)), h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
 
-  const g = { m: [], t: [], n: [], libre: [] };
-  Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => g[tipoTurno(turnoEf(id, f))].push(nom(id)));
-  [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"]].forEach(([k, titulo]) =>
+  const g = { m: [], t: [], n: [], libre: [], aus: [] };
+  Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
+    const t = turnoEf(id, f), k = tipoTurno(t);
+    g[k].push(k === "aus" ? `${nom(id)} (${t === "V" ? "vacaciones" : "baja"})` : nom(id) + (cambios[f]?.[id] ? " ↔️" : ""));
+  });
+  [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]].forEach(([k, titulo]) =>
     body.append(h("div", { class: `grupo ${k}` }, h("b", {}, titulo), g[k].length ? g[k].join(", ") : "—")));
 
   Object.entries(notas[f] || {}).forEach(([id, txt]) => body.append(h("div", { class: "nota" }, `🔔 ${nom(id)}: ${txt}`)));
+
+  for (const s of Object.values(sols)) {
+    if (s.estado !== "cerrada" || !s.aceptada) continue;
+    const dev = s.ofertas?.[s.aceptada]?.dev;
+    if (s.fecha === f) body.append(h("div", { class: "cambio" }, `↔️ ${nom(s.solicitante)} cede su día a ${nom(s.aceptada)}`));
+    if (dev === f) body.append(h("div", { class: "cambio" }, `↔️ ${nom(s.aceptada)} cede su día a ${nom(s.solicitante)}`));
+  }
 
   const ta = h("textarea", { placeholder: "Ej: no vengo, médico, vacaciones...", maxlength: "200" });
   ta.value = notas[f]?.[me] ?? "";
@@ -135,7 +147,7 @@ function renderModal() {
 
   const row = h("div", { class: "row" },
     h("button", { class: "ok", onclick: async () => { await set(ref(db, `notas/${f}/${me}`), ta.value.trim() || null); cerrar(); } }, "Guardar nota"));
-  if (!esLibre(mio)) {
+  if (trabaja(mio)) {
     const ya = solsAbiertas().some(([, s]) => s.fecha === f && s.solicitante === me);
     row.append(h("button", { class: "warn", onclick: async () => { await crearSolicitud(f); cerrar(); }, ...(ya ? { disabled: "" } : {}) }, ya ? "Ya pedido" : "Pedir cambio"));
   }
@@ -173,7 +185,7 @@ function renderSol() {
       card.append(h("small", {}, "Devolución opcional: un día tuyo de trabajo que él/ella cubriría"), dev,
         h("div", { class: "row" }, h("button", { class: "ok", onclick: () => ofrecer(sid, s, dev.value) }, "Me ofrezco")));
     } else {
-      card.append(h("small", {}, `No puedes cubrirlo: ese día trabajas (${turnoEf(me, s.fecha)}).`));
+      card.append(h("small", {}, `No puedes cubrirlo: ese día no libras (${etiq(turnoEf(me, s.fecha))}).`));
     }
     cont.append(card);
   }
@@ -181,7 +193,7 @@ function renderSol() {
 
 async function ofrecer(sid, s, dev) {
   if (dev) {
-    if (esLibre(turnoEf(me, dev))) return alert("Ese día tú libras: no hay nada que devolver.");
+    if (!trabaja(turnoEf(me, dev))) return alert("Ese día no trabajas: no hay nada que devolver.");
     if (!esLibre(turnoEf(s.solicitante, dev))) return alert(`${nom(s.solicitante)} trabaja ese día y no puede cubrirte.`);
   }
   await set(ref(db, `solicitudes/${sid}/ofertas/${me}`), dev ? { t: Date.now(), dev } : { t: Date.now() });
@@ -191,7 +203,7 @@ async function aceptar(sid, oid) {
   const s = sols[sid], dev = s.ofertas[oid].dev, D = s.fecha;
   // Se revalida con el estado actual por si los turnos cambiaron desde la oferta
   if (!esLibre(turnoEf(oid, D))) return alert(`${nom(oid)} ya no libra ese día.`);
-  if (dev && (esLibre(turnoEf(oid, dev)) || !esLibre(turnoEf(me, dev)))) return alert("La devolución ya no es válida.");
+  if (dev && (!trabaja(turnoEf(oid, dev)) || !esLibre(turnoEf(me, dev)))) return alert("La devolución ya no es válida.");
   const turnoA = turnoEf(me, D), turnoDev = dev ? turnoEf(oid, dev) : null;
   // La transacción evita aceptar dos veces la misma solicitud
   const r = await runTransaction(ref(db, `solicitudes/${sid}/estado`), cur => cur === "abierta" ? "cerrada" : undefined);
@@ -201,8 +213,43 @@ async function aceptar(sid, oid) {
   await update(ref(db), up);
 }
 
+/* ---------- Ausencias (vacaciones y bajas) ---------- */
+$("ausDesde").value = $("ausHasta").value = hoyIso();
+$("btnAus").onclick = async () => {
+  const d1 = $("ausDesde").value, d2 = $("ausHasta").value;
+  if (!d1 || !d2 || d2 < d1) return alert("Revisa las fechas: 'Hasta' no puede ser anterior a 'Desde'.");
+  const dias = rango(d1, d2);
+  if (dias.length > 120) return alert("Máximo 120 días de una vez. Para una baja larga, registra otra después.");
+  const up = {}; dias.forEach(f => { up[`ausencias/${f}/${me}`] = $("ausTipo").value; });
+  await update(ref(db), up);
+};
+
+function renderAus() {
+  const cont = $("listaAus"); cont.innerHTML = "";
+  const hoy = hoyIso(), items = [];
+  for (const [f, porOp] of Object.entries(ausencias)) for (const [id, t] of Object.entries(porOp)) if (ops[id]) items.push({ f, id, t });
+  items.sort((a, b) => a.id.localeCompare(b.id) || a.t.localeCompare(b.t) || a.f.localeCompare(b.f));
+  const rangos = [];
+  for (const it of items) { // une días seguidos de la misma persona y tipo en un solo tramo
+    const u = rangos[rangos.length - 1];
+    if (u && u.id === it.id && u.t === it.t && dayNum(it.f) - dayNum(u.hasta) === 1) { u.hasta = it.f; u.dias.push(it.f); }
+    else rangos.push({ id: it.id, t: it.t, desde: it.f, hasta: it.f, dias: [it.f] });
+  }
+  const vivos = rangos.filter(r => r.hasta >= hoy).sort((a, b) => a.desde.localeCompare(b.desde));
+  if (!vivos.length) { cont.append(h("div", { class: "vacio" }, "Nadie tiene ausencias registradas.")); return; }
+  cont.append(h("label", {}, "Ausencias del equipo"));
+  vivos.forEach(r => cont.append(h("div", { class: "sol" + (r.id === me ? " mia" : "") },
+    h("b", {}, `${r.t === "V" ? "🏖️" : "🩺"} ${nom(r.id)}`), ` · ${r.t === "V" ? "vacaciones" : "baja"}`,
+    h("small", {}, `${fmt(r.desde)} al ${fmt(r.hasta)}`),
+    r.id === me ? h("div", { class: "row" }, h("button", { class: "bad", onclick: () => {
+      if (!confirm("¿Quitar esta ausencia?")) return;
+      const up = {}; r.dias.forEach(f => { up[`ausencias/${f}/${me}`] = null; });
+      update(ref(db), up);
+    } }, "Quitar")) : null)));
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; renderCal(); renderSol(); }
+function render() { if (!me || !ops[me]) return; renderCal(); renderSol(); renderAus(); }
 
 signInAnonymously(getAuth(app)).then(() => {
   onValue(ref(db, "operarios"), s => {
@@ -211,5 +258,6 @@ signInAnonymously(getAuth(app)).then(() => {
   });
   onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); });
   onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); });
+  onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); });
   onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); });
 }).catch(e => { $("loginMsg").textContent = "Error de conexión: " + e.message; });
