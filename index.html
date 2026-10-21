@@ -32,6 +32,7 @@
     <div class="tabs">
       <button data-tab="cal" class="on">Calendario</button>
       <button data-tab="sol">Solicitudes <span id="badge"></span></button>
+      <button data-tab="aus">Ausencias</button>
     </div>
     <div id="viewCal">
       <div class="cal-header">
@@ -42,6 +43,14 @@
       <div class="grid" id="grid"></div>
     </div>
     <div id="viewSol" hidden></div>
+    <div id="viewAus" hidden>
+      <label for="ausTipo">Registrar mi ausencia</label>
+      <select id="ausTipo"><option value="V">Vacaciones</option><option value="B">Baja</option></select>
+      <label for="ausDesde">Desde</label><input type="date" id="ausDesde">
+      <label for="ausHasta">Hasta</label><input type="date" id="ausHasta">
+      <button class="btn-sync" id="btnAus">Registrar</button>
+      <div id="listaAus"></div>
+    </div>
   </div>
 </div></div>
 
