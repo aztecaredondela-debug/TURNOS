@@ -1,0 +1,24 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": false,
+    "operarios": {
+      "$id": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
+      }
+    },
+    "notas": {
+      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().length <= 200" } }
+    },
+    "cambios": {
+      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().length <= 4" } }
+    },
+    "solicitudes": {
+      "$s": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['fecha','solicitante','estado']) && newData.child('fecha').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
+      }
+    }
+  }
+}

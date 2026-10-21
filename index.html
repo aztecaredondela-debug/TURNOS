@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turnos - Mantenimiento</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-container"><div class="card">
+  <h1>Mantenimiento</h1>
+
+  <div id="loginArea">
+    <label for="selOp">¿Quién eres?</label>
+    <select id="selOp"></select>
+    <div id="nuevoArea" hidden>
+      <label for="nuevoNombre">Tu nombre</label>
+      <input id="nuevoNombre" maxlength="30" autocomplete="off">
+      <label for="fechaBase">Fecha de referencia</label>
+      <input type="date" id="fechaBase">
+      <label for="turnoBase">Tu turno ese día</label>
+      <select id="turnoBase"></select>
+    </div>
+    <label for="pin">PIN (4 cifras)</label>
+    <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+    <div id="loginMsg" class="msg"></div>
+    <button class="btn-sync" id="btnEntrar">Entrar</button>
+  </div>
+
+  <div id="mainArea" hidden>
+    <div class="who"><b id="quien"></b><button id="btnSalir" class="link">Salir</button></div>
+    <div class="tabs">
+      <button data-tab="cal" class="on">Calendario</button>
+      <button data-tab="sol">Solicitudes <span id="badge"></span></button>
+    </div>
+    <div id="viewCal">
+      <div class="cal-header">
+        <button class="nav-btn" id="prev" aria-label="Mes anterior">❮</button>
+        <div id="monthLabel"></div>
+        <button class="nav-btn" id="next" aria-label="Mes siguiente">❯</button>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div id="viewSol" hidden></div>
+  </div>
+</div></div>
+
+<div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

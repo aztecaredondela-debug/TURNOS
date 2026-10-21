@@ -1,0 +1,48 @@
+:root{--bg:#0b0e14;--card-bg:#161b22;--text-white:#fff;--color-m:#00d4ff;--color-t:#ff9f43;--color-n:#a55eea;--color-libre:#2ecc71;--color-reset:#ff4757;--color-note:#ffcc00}
+[hidden]{display:none!important}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text-white);margin:0;padding:10px;display:flex;flex-direction:column;align-items:center}
+.app-container{width:100%;max-width:450px}
+.card{background:var(--card-bg);border-radius:20px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1)}
+h1{font-size:1.1rem;text-align:center;color:var(--color-libre);letter-spacing:2px;text-transform:uppercase;margin:0 0 20px}
+h3{margin:0 0 10px;font-size:1rem;text-transform:capitalize}
+label{font-size:.75rem;text-transform:uppercase;color:#888;display:block;margin-bottom:5px}
+select,input,textarea{width:100%;padding:12px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#fff;font-size:1rem;margin-bottom:15px;box-sizing:border-box;font-family:inherit}
+textarea{height:70px;resize:none}
+button{font-family:inherit}
+.btn-sync{width:100%;padding:15px;background:var(--color-libre);color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;text-transform:uppercase}
+.msg{color:var(--color-reset);font-size:.85rem;min-height:1.1em;margin-bottom:10px}
+.link{background:none;border:none;color:var(--color-reset);font-size:.8rem;cursor:pointer;text-decoration:underline}
+.who{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:var(--color-m);font-size:1.1rem}
+.tabs{display:flex;gap:6px;margin-bottom:15px}
+.tabs button{flex:1;padding:10px;background:#21262d;border:none;border-bottom:3px solid transparent;border-radius:8px;color:#aaa;cursor:pointer;font-weight:700}
+.tabs button.on{color:#fff;border-color:var(--color-libre)}
+#badge{background:var(--color-t);color:#000;border-radius:10px;padding:0 6px;font-size:.75rem}
+#badge:empty{display:none}
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.nav-btn{background:#30363d;border:none;color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-weight:700}
+#monthLabel{font-weight:700;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.day-name{font-size:.75rem;text-align:center;text-transform:uppercase;padding-bottom:10px;font-weight:700}
+.day-cell{aspect-ratio:1/1.3;background:#21262d;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.85rem;border:0;border-bottom:3px solid transparent;color:#fff;cursor:pointer;padding:0}
+.day-cell span{font-size:.75rem;margin-bottom:2px;opacity:.9}
+.day-cell b{font-size:.85rem}
+.icons{font-size:.65rem;min-height:.8rem}
+.m-shift{border-color:var(--color-m);color:var(--color-m)}
+.t-shift{border-color:var(--color-t);color:var(--color-t)}
+.n-shift{border-color:var(--color-n);color:var(--color-n)}
+.libre-shift{border-color:var(--color-libre);color:var(--color-libre);background:rgba(46,204,113,.1)}
+.today{outline:2px solid #fff;box-shadow:0 0 10px rgba(255,255,255,.4)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:10px}
+.modal-body{background:#1c2128;padding:20px;border-radius:15px;border:1px solid var(--color-note);width:100%;max-width:380px;max-height:90vh;overflow-y:auto}
+.grupo{font-size:.85rem;margin:6px 0;line-height:1.4}
+.grupo b{display:inline-block;min-width:62px}
+.grupo.m b{color:var(--color-m)}.grupo.t b{color:var(--color-t)}.grupo.n b{color:var(--color-n)}.grupo.libre b{color:var(--color-libre)}
+.nota{font-size:.85rem;color:var(--color-note);margin:4px 0}
+.row{display:flex;gap:10px;margin-top:10px}
+.row button{flex:1;padding:10px;border-radius:8px;border:none;font-weight:700;cursor:pointer}
+.ok{background:var(--color-libre);color:#000}.sec{background:#333;color:#fff}.warn{background:var(--color-t);color:#000}.bad{background:var(--color-reset);color:#fff}
+.sol{background:#0d1117;border:1px solid #30363d;border-radius:12px;padding:12px;margin-bottom:10px;font-size:.9rem}
+.sol.mia{border-color:var(--color-m)}
+.sol small{color:#888;display:block;margin-top:4px}
+.sol input{margin:8px 0 0;padding:8px}
+.vacio{color:#888;text-align:center;padding:20px 0}
