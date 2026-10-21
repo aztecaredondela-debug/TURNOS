@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/33760953/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -21,7 +22,15 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 - `operarios/{id}`: nombre, ref (fecha), idx (posición en el ciclo), pinHash
 - `notas/{fecha}/{id}`: texto
 - `cambios/{fecha}/{id}`: turno resultante tras un cambio (`LC` = libre por cambio)
+- `ausencias/{fecha}/{id}`: `V` (vacaciones) o `B` (baja)
 - `solicitudes/{id}`: fecha, solicitante, estado, ofertas
+- `operarios/{id}/admin`: `true` solo se puede poner a mano desde la consola de Firebase; da acceso a la pestaña Equipo
+
+## Si algo falla
+Abajo de la pantalla aparece un aviso rojo con el motivo. Casi siempre es una de estas:
+- Reglas sin publicar en Firebase (Realtime Database > Reglas).
+- Acceso Anónimo sin activar (Authentication > Método de acceso).
+- Navegador con versión antigua: recarga con Ctrl+F5 y comprueba que abajo pone la última "Versión".
 
 ## Limitación conocida
 El PIN evita entrar por error con el nombre de otro compañero, pero no es seguridad real: el hash es legible por quien tenga acceso a la base de datos. Si necesitáis protección fuerte, hay que pasar a correo/contraseña con Firebase Auth.
