@@ -17,8 +17,17 @@ export function turnoCiclo(op, fecha) {
 }
 // LC = libre por cambio de turno
 export const esLibre = t => t === "DS" || t === "DF" || t === "LC";
-// V = vacaciones, B = baja
-export const tipoTurno = t => (t === "V" || t === "B" ? "aus" : esLibre(t) ? "libre" : t[0].toLowerCase()); // m | t | n | libre | aus
+// Tipos de ausencia. Para añadir uno nuevo basta una línea aquí (código de 1 a 3 letras MAYÚSCULAS,
+// que no coincida con ningún turno del ciclo).
+export const TIPOS_AUS = {
+  V:  { nombre: "Vacaciones",             etq: "VAC",  icono: "🏖️" },
+  B:  { nombre: "Baja",                   etq: "BAJA", icono: "🩺" },
+  LD: { nombre: "Libre disposición",      etq: "LD",   icono: "🗓️" },
+  FA: { nombre: "Permiso familiar",       etq: "FAM",  icono: "👪" },
+  MA: { nombre: "Maternidad/paternidad",  etq: "MAT",  icono: "👶" },
+  OT: { nombre: "Otros permisos",         etq: "PERM", icono: "📋" },
+};
+export const tipoTurno = t => (TIPOS_AUS[t] ? "aus" : esLibre(t) ? "libre" : t[0].toLowerCase()); // m | t | n | libre | aus
 export const trabaja = t => ["m", "t", "n"].includes(tipoTurno(t));
 
 // Lista de fechas ISO entre dos fechas, ambas incluidas
