@@ -38,6 +38,7 @@
     <div class="who"><b id="quien"></b><button id="btnSalir" class="link">Salir</button></div>
     <div class="tabs">
       <button data-tab="cal" class="on">Calendario</button>
+      <button data-tab="quien">👥 Quién</button>
       <button data-tab="sol">Solicitudes <span id="badge"></span></button>
       <button data-tab="aus">Ausencias</button>
       <button data-tab="eq" id="tabEq" hidden>Equipo</button>
@@ -49,6 +50,18 @@
         <button class="nav-btn" id="next" aria-label="Mes siguiente">❯</button>
       </div>
       <div class="grid" id="grid"></div>
+    </div>
+    <div id="viewQuien" hidden>
+      <div class="cal-header">
+        <button class="nav-btn" id="qPrev" aria-label="Día anterior">❮</button>
+        <div id="qLabel"></div>
+        <button class="nav-btn" id="qNext" aria-label="Día siguiente">❯</button>
+      </div>
+      <input type="date" id="qFecha" aria-label="Ir a una fecha">
+      <button class="btn-sec" id="qHoy" hidden>Volver a hoy</button>
+      <div id="listaQuien"></div>
+      <label>Días siguientes</label>
+      <div id="proxQuien"></div>
     </div>
     <div id="viewSol" hidden></div>
     <div id="viewAus" hidden>
@@ -65,6 +78,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=5"></script>
+<script type="module" src="app.js?v=8"></script>
 </body>
 </html>
