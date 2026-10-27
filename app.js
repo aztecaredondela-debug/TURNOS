@@ -1,10 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=8";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=8";
+import { firebaseConfig } from "./firebase-config.js?v=9";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=9";
 
-const VERSION = 8;
+const VERSION = 9;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -53,6 +53,7 @@ function pintarSelectorOperarios() {
   $("nuevoArea").hidden = sel.value !== NUEVO;
 }
 $("selOp").onchange = () => { $("nuevoArea").hidden = $("selOp").value !== NUEVO; };
+$("tipoCiclo").onchange = () => { const lv = $("tipoCiclo").value === "LV"; $("blkRot").hidden = lv; $("blkLV").hidden = !lv; };
 
 $("btnEntrar").onclick = async () => {
   const msg = $("loginMsg"); msg.textContent = "";
@@ -65,8 +66,10 @@ $("btnEntrar").onclick = async () => {
       if (!nombre) { msg.textContent = "Escribe tu nombre."; return; }
       if (!$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
       id = push(ref(db, "operarios")).key;
+      const lv = $("tipoCiclo").value === "LV";
       await set(ref(db, "operarios/" + id), {
-        nombre, ref: $("fechaBase").value, idx: parseInt($("turnoBase").value), pinHash: await hashPin(pin, id)
+        nombre, ref: $("fechaBase").value, idx: parseInt(lv ? $("lvTurno").value : $("turnoBase").value), pinHash: await hashPin(pin, id),
+        ...(lv ? { ciclo: "LV" } : {})
       });
     } else if (ops[id].pinHash !== await hashPin(pin, id)) {
       msg.textContent = "PIN incorrecto."; return;
@@ -294,16 +297,23 @@ function editarOp(id) {
   const fr = h("input", { type: "date", value: o.ref });
   const sel = h("select");
   for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
-  sel.value = o.idx;
+  sel.value = o.ciclo === "LV" ? 0 : o.idx;
+  const tipo = h("select"); tipo.add(new Option("Rotativo (ciclo de 70 días)", "70")); tipo.add(new Option("Lunes a viernes (semana mañana / semana tarde)", "LV"));
+  tipo.value = o.ciclo === "LV" ? "LV" : "70";
+  const lvSel = h("select"); lvSel.add(new Option("Mañana", "0")); lvSel.add(new Option("Tarde", "1"));
+  lvSel.value = o.ciclo === "LV" ? String(o.idx) : "0";
+  const blkRot = h("div", {}, h("label", {}, "Su turno ese día"), sel), blkLV = h("div", {}, h("label", {}, "Esa semana (la de la fecha) trabaja de"), lvSel);
+  const alt = () => { blkRot.hidden = tipo.value === "LV"; blkLV.hidden = tipo.value !== "LV"; }; tipo.onchange = alt; alt();
   const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
   body.append(h("h3", {}, "Editar compañero"),
     h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
-    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, "Tipo de turno"), tipo, blkRot, blkLV, h("label", {}, "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
         if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
         if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
-        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
+        const lv = tipo.value === "LV";
+        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(lv ? lvSel.value : sel.value), ciclo: lv ? "LV" : null };
         if (pin.value) datos.pinHash = await hashPin(pin.value, id);
         await update(ref(db, "operarios/" + id), datos);
         cerrar();
