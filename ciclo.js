@@ -39,3 +39,9 @@ export function rango(desde, hasta) {
   }
   return out;
 }
+
+// Suma n días (puede ser negativo) a una fecha ISO
+export function sumaDias(fecha, n) {
+  const d = new Date((dayNum(fecha) + n) * 86400000);
+  return iso(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
