@@ -57,3 +57,19 @@ button{font-family:inherit}
 .acc button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:700}
 #errBar{position:fixed;left:10px;right:10px;bottom:10px;background:#ff4757;color:#fff;padding:12px;border-radius:10px;z-index:200;font-size:.85rem;cursor:pointer}
 #ver{color:#555;font-size:.7rem;text-align:center;margin:12px 0}
+.tabs{flex-wrap:wrap}
+#qLabel{font-weight:700;text-transform:capitalize}
+.btn-sec{width:100%;padding:10px;background:#21262d;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:12px;font-weight:700}
+.grupo-q{margin-bottom:14px}
+.grupo-q .tit{font-size:.8rem;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.grupo-q.m .tit{color:var(--color-m)}.grupo-q.t .tit{color:var(--color-t)}.grupo-q.n .tit{color:var(--color-n)}.grupo-q.libre .tit{color:var(--color-libre)}.grupo-q.aus .tit{color:#ff6b9d}
+.chip{display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:14px;padding:4px 10px;margin:3px 4px 3px 0;font-size:.85rem}
+.chip small{color:#888;margin-left:2px}
+.chip.yo{border-color:#fff}
+.vacio-q{color:#555}
+.pie-q{color:#666;font-size:.75rem;text-align:center;margin:8px 0 16px}
+.prox{display:flex;justify-content:space-between;align-items:center;width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px;margin-bottom:6px;color:#fff;cursor:pointer;font-size:.85rem;text-transform:capitalize}
+.c-m{color:var(--color-m)}.c-t{color:var(--color-t)}.c-n{color:var(--color-n)}
+.prox.abierto{border-color:var(--color-libre);margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+.prox-det{background:#0d1117;border:1px solid var(--color-libre);border-top:0;border-radius:0 0 10px 10px;padding:10px;margin-bottom:8px}
+.prox-det .btn-sec{margin:6px 0 0}
