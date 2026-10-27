@@ -1,10 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=4";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum } from "./ciclo.js?v=4";
+import { firebaseConfig } from "./firebase-config.js?v=5";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS } from "./ciclo.js?v=5";
 
-const VERSION = 4;
+const VERSION = 5;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -28,7 +28,7 @@ let view = new Date(), tab = "cal", modalFecha = null;
 const nom = id => ops[id]?.nombre ?? "?";
 // Prioridad: ausencia > cambio de turno > ciclo
 const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
-const etiq = t => ({ V: "VAC", B: "BAJA" })[t] ?? t;
+const etiq = t => TIPOS_AUS[t]?.etq ?? t;
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
 const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
@@ -130,7 +130,7 @@ function renderModal() {
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
   Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
     const t = turnoEf(id, f), k = tipoTurno(t);
-    g[k].push(k === "aus" ? `${nom(id)} (${t === "V" ? "vacaciones" : "baja"})` : nom(id) + (cambios[f]?.[id] ? " ↔️" : ""));
+    g[k].push(k === "aus" ? `${nom(id)} (${TIPOS_AUS[t].nombre.toLowerCase()})` : nom(id) + (cambios[f]?.[id] ? " ↔️" : ""));
   });
   [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]].forEach(([k, titulo]) =>
     body.append(h("div", { class: `grupo ${k}` }, h("b", {}, titulo), g[k].length ? g[k].join(", ") : "—")));
@@ -219,6 +219,7 @@ async function aceptar(sid, oid) {
 
 /* ---------- Ausencias (vacaciones y bajas) ---------- */
 $("ausDesde").value = $("ausHasta").value = hoyIso();
+for (const [k, v] of Object.entries(TIPOS_AUS)) $("ausTipo").add(new Option(v.nombre, k));
 $("btnAus").onclick = async () => {
   const d1 = $("ausDesde").value, d2 = $("ausHasta").value;
   if (!d1 || !d2 || d2 < d1) return alert("Revisa las fechas: 'Hasta' no puede ser anterior a 'Desde'.");
@@ -243,7 +244,7 @@ function renderAus() {
   if (!vivos.length) { cont.append(h("div", { class: "vacio" }, "Nadie tiene ausencias registradas.")); return; }
   cont.append(h("label", {}, "Ausencias del equipo"));
   vivos.forEach(r => cont.append(h("div", { class: "sol" + (r.id === me ? " mia" : "") },
-    h("b", {}, `${r.t === "V" ? "🏖️" : "🩺"} ${nom(r.id)}`), ` · ${r.t === "V" ? "vacaciones" : "baja"}`,
+    h("b", {}, `${TIPOS_AUS[r.t]?.icono ?? "📋"} ${nom(r.id)}`), ` · ${(TIPOS_AUS[r.t]?.nombre ?? "ausencia").toLowerCase()}`,
     h("small", {}, `${fmt(r.desde)} al ${fmt(r.hasta)}`),
     r.id === me ? h("div", { class: "row" }, h("button", { class: "bad", onclick: () => {
       if (!confirm("¿Quitar esta ausencia?")) return;
