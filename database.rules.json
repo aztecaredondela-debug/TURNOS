@@ -15,7 +15,7 @@
       "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().length <= 4" } }
     },
     "ausencias": {
-      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && (newData.val() == 'V' || newData.val() == 'B')" } }
+      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{1,3}$/)" } }
     },
     "solicitudes": {
       "$s": {
