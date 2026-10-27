@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Turnos - Mantenimiento</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b0e14">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Turnos">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -82,6 +89,7 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=9"></script>
+<script type="module" src="app.js?v=10"></script>
+<script>if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});</script>
 </body>
 </html>
