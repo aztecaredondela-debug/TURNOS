@@ -1,10 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=5";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS } from "./ciclo.js?v=5";
+import { firebaseConfig } from "./firebase-config.js?v=8";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=8";
 
-const VERSION = 5;
+const VERSION = 8;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -88,7 +88,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq";
+  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq";
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
 $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1); render(); };
@@ -137,12 +137,20 @@ function renderModal() {
 
   Object.entries(notas[f] || {}).forEach(([id, txt]) => body.append(h("div", { class: "nota" }, `🔔 ${nom(id)}: ${txt}`)));
 
-  for (const s of Object.values(sols)) {
+  const admin = !!ops[me]?.admin;
+  for (const [sid, s] of Object.entries(sols)) {
     if (s.estado !== "cerrada" || !s.aceptada) continue;
     const dev = s.ofertas?.[s.aceptada]?.dev;
+    if (s.fecha !== f && dev !== f) continue;
     if (s.fecha === f) body.append(h("div", { class: "cambio" }, `↔️ ${nom(s.solicitante)} cede su día a ${nom(s.aceptada)}`));
     if (dev === f) body.append(h("div", { class: "cambio" }, `↔️ ${nom(s.aceptada)} cede su día a ${nom(s.solicitante)}`));
+    if (admin || s.solicitante === me || s.aceptada === me)
+      body.append(h("div", { class: "row" }, h("button", { class: "warn", onclick: () => deshacer(sid) }, "Deshacer este cambio")));
   }
+  if (ausencias[f]?.[me]) body.append(h("div", { class: "row" }, h("button", { class: "warn", onclick: async () => {
+    if (!confirm("¿Quitar tu ausencia de este día? Volverás a tu turno normal.")) return;
+    await set(ref(db, `ausencias/${f}/${me}`), null); cerrar();
+  } }, `Quitar mi ${(TIPOS_AUS[ausencias[f][me]]?.nombre ?? "ausencia").toLowerCase()} de este día`)));
 
   const ta = h("textarea", { placeholder: "Ej: no vengo, médico, vacaciones...", maxlength: "200" });
   ta.value = notas[f]?.[me] ?? "";
@@ -217,7 +225,20 @@ async function aceptar(sid, oid) {
   await update(ref(db), up);
 }
 
-/* ---------- Ausencias (vacaciones y bajas) ---------- */
+// Deshace un cambio aceptado (lo puede hacer cualquiera de los dos o el administrador)
+async function deshacer(sid) {
+  const s = sols[sid], oid = s.aceptada, D = s.fecha, dev = s.ofertas?.[oid]?.dev;
+  const okD = cambios[D]?.[s.solicitante] === "LC" && cambios[D]?.[oid] && cambios[D][oid] !== "LC";
+  const okDev = !dev || (cambios[dev]?.[oid] === "LC" && cambios[dev]?.[s.solicitante] && cambios[dev][s.solicitante] !== "LC");
+  if (!okD || !okDev) return alert("No se puede deshacer: esos días han vuelto a cambiar después.");
+  if (!confirm(`¿Deshacer el cambio entre ${nom(s.solicitante)} y ${nom(oid)}? Cada uno volverá a su turno normal.`)) return;
+  const up = { [`cambios/${D}/${s.solicitante}`]: null, [`cambios/${D}/${oid}`]: null, [`solicitudes/${sid}/estado`]: "anulada" };
+  if (dev) { up[`cambios/${dev}/${oid}`] = null; up[`cambios/${dev}/${s.solicitante}`] = null; }
+  await update(ref(db), up);
+  cerrar();
+}
+
+/* ---------- Ausencias (vacaciones, bajas y permisos) ---------- */
 $("ausDesde").value = $("ausHasta").value = hoyIso();
 for (const [k, v] of Object.entries(TIPOS_AUS)) $("ausTipo").add(new Option(v.nombre, k));
 $("btnAus").onclick = async () => {
@@ -246,11 +267,11 @@ function renderAus() {
   vivos.forEach(r => cont.append(h("div", { class: "sol" + (r.id === me ? " mia" : "") },
     h("b", {}, `${TIPOS_AUS[r.t]?.icono ?? "📋"} ${nom(r.id)}`), ` · ${(TIPOS_AUS[r.t]?.nombre ?? "ausencia").toLowerCase()}`,
     h("small", {}, `${fmt(r.desde)} al ${fmt(r.hasta)}`),
-    r.id === me ? h("div", { class: "row" }, h("button", { class: "bad", onclick: () => {
-      if (!confirm("¿Quitar esta ausencia?")) return;
-      const up = {}; r.dias.forEach(f => { up[`ausencias/${f}/${me}`] = null; });
+    r.id === me || ops[me]?.admin ? h("div", { class: "row" }, h("button", { class: "bad", onclick: () => {
+      if (!confirm(`¿Quitar esta ausencia${r.id === me ? "" : " de " + nom(r.id)}?`)) return;
+      const up = {}; r.dias.filter(f => f >= hoy).forEach(f => { up[`ausencias/${f}/${r.id}`] = null; });
       update(ref(db), up);
-    } }, "Quitar")) : null)));
+    } }, r.desde < hoy ? "Quitar lo que queda" : "Quitar")) : null)));
 }
 
 /* ---------- Administración del equipo (solo con operarios/{id}/admin = true) ---------- */
@@ -304,8 +325,63 @@ async function borrarOp(id) {
   await update(ref(db), up);
 }
 
+/* ---------- Pestaña "Quién": quién trabaja cada día ---------- */
+let quienFecha = hoyIso();
+const abiertosQuien = new Set();
+const GRUPOS = [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]];
+const cambiarQuien = f => { quienFecha = f; renderQuien(); };
+$("qPrev").onclick = () => cambiarQuien(sumaDias(quienFecha, -1));
+$("qNext").onclick = () => cambiarQuien(sumaDias(quienFecha, 1));
+$("qHoy").onclick = () => cambiarQuien(hoyIso());
+$("qFecha").onchange = e => { if (e.target.value) cambiarQuien(e.target.value); };
+
+function gruposDelDia(f) {
+  const g = { m: [], t: [], n: [], libre: [], aus: [] };
+  for (const id of Object.keys(ops)) { const t = turnoEf(id, f); g[tipoTurno(t)].push({ id, t }); }
+  for (const k in g) g[k].sort((a, b) => nom(a.id).localeCompare(nom(b.id), "es"));
+  return g;
+}
+
+function renderQuien() {
+  if (!me || !ops[me]) return;
+  const f = quienFecha, hoy = hoyIso();
+  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f);
+  $("qHoy").hidden = f === hoy;
+  if ($("qFecha").value !== f) $("qFecha").value = f;
+
+  const lista = $("listaQuien"); lista.innerHTML = "";
+  const g = gruposDelDia(f);
+  for (const [k, titulo] of GRUPOS) {
+    const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
+    if (!g[k].length) bloque.append(h("span", { class: "vacio-q" }, "—"));
+    g[k].forEach(({ id, t }) => bloque.append(h("span", { class: "chip" + (id === me ? " yo" : "") },
+      nom(id), " ", h("small", {}, etiq(t)), cambios[f]?.[id] && k !== "aus" ? " ↔️" : "")));
+    lista.append(bloque);
+  }
+  lista.append(h("div", { class: "pie-q" }, `${Object.keys(ops).length} compañeros registrados`));
+
+  const prox = $("proxQuien"); prox.innerHTML = "";
+  for (let i = 1; i <= 7; i++) {
+    const d = sumaDias(f, i), gd = gruposDelDia(d), abierto = abiertosQuien.has(d);
+    prox.append(h("button", { class: "prox" + (abierto ? " abierto" : ""), onclick: () => { abiertosQuien.has(d) ? abiertosQuien.delete(d) : abiertosQuien.add(d); renderQuien(); } },
+      h("span", {}, (abierto ? "▾ " : "▸ ") + fmt(d)),
+      h("span", {}, h("b", { class: "c-m" }, `M ${gd.m.length}`), " ", h("b", { class: "c-t" }, `T ${gd.t.length}`), " ", h("b", { class: "c-n" }, `N ${gd.n.length}`), gd.aus.length ? ` · Aus ${gd.aus.length}` : "")));
+    if (abierto) {
+      const det = h("div", { class: "prox-det" });
+      for (const [k, titulo] of GRUPOS) {
+        if (k === "libre") continue;
+        if (k === "aus" && !gd.aus.length) continue;
+        det.append(h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${gd[k].length})`),
+          gd[k].length ? gd[k].map(({ id, t }) => h("span", { class: "chip" + (id === me ? " yo" : "") }, nom(id), " ", h("small", {}, etiq(t)), cambios[d]?.[id] && k !== "aus" ? " ↔️" : "")) : h("span", { class: "vacio-q" }, "—")));
+      }
+      det.append(h("button", { class: "btn-sec", onclick: () => cambiarQuien(d) }, "Ir a este día"));
+      prox.append(det);
+    }
+  }
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderSol(); renderAus(); renderEq(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderSol(); renderAus(); renderEq(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
