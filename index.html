@@ -23,10 +23,14 @@
     <div id="nuevoArea" hidden>
       <label for="nuevoNombre">Tu nombre</label>
       <input id="nuevoNombre" maxlength="30" autocomplete="off">
+      <label for="tipoCiclo">Tipo de turno</label>
+      <select id="tipoCiclo"><option value="70">Rotativo (ciclo de 70 días)</option><option value="LV">Lunes a viernes (semana mañana / semana tarde)</option></select>
       <label for="fechaBase">Fecha de referencia</label>
       <input type="date" id="fechaBase">
-      <label for="turnoBase">Tu turno ese día</label>
-      <select id="turnoBase"></select>
+      <div id="blkRot"><label for="turnoBase">Tu turno ese día</label>
+      <select id="turnoBase"></select></div>
+      <div id="blkLV" hidden><label for="lvTurno">Esa semana (la de la fecha) trabajo de</label>
+      <select id="lvTurno"><option value="0">Mañana</option><option value="1">Tarde</option></select></div>
     </div>
     <label for="pin">PIN (4 cifras)</label>
     <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
@@ -78,6 +82,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=8"></script>
+<script type="module" src="app.js?v=9"></script>
 </body>
 </html>
