@@ -4,13 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Turnos - Mantenimiento</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0b0e14">
-  <link rel="icon" type="image/png" href="icons/favicon.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Turnos">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,14 +23,10 @@
     <div id="nuevoArea" hidden>
       <label for="nuevoNombre">Tu nombre</label>
       <input id="nuevoNombre" maxlength="30" autocomplete="off">
-      <label for="tipoCiclo">Tipo de turno</label>
-      <select id="tipoCiclo"><option value="70">Rotativo (ciclo de 70 días)</option><option value="LV">Lunes a viernes (semana mañana / semana tarde)</option></select>
       <label for="fechaBase">Fecha de referencia</label>
       <input type="date" id="fechaBase">
-      <div id="blkRot"><label for="turnoBase">Tu turno ese día</label>
-      <select id="turnoBase"></select></div>
-      <div id="blkLV" hidden><label for="lvTurno">Esa semana (la de la fecha) trabajo de</label>
-      <select id="lvTurno"><option value="0">Mañana</option><option value="1">Tarde</option></select></div>
+      <label for="turnoBase">Tu turno ese día</label>
+      <select id="turnoBase"></select>
     </div>
     <label for="pin">PIN (4 cifras)</label>
     <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
@@ -50,6 +39,7 @@
     <div class="tabs">
       <button data-tab="cal" class="on">Calendario</button>
       <button data-tab="quien">👥 Quién</button>
+      <button data-tab="chat">💬 Chat <span id="badgeChat"></span></button>
       <button data-tab="sol">Solicitudes <span id="badge"></span></button>
       <button data-tab="aus">Ausencias</button>
       <button data-tab="eq" id="tabEq" hidden>Equipo</button>
@@ -74,6 +64,13 @@
       <label>Días siguientes</label>
       <div id="proxQuien"></div>
     </div>
+    <div id="viewChat" hidden>
+      <div id="chatMsgs"></div>
+      <div class="chat-form">
+        <input id="chatTxt" maxlength="500" placeholder="Escribe un mensaje..." autocomplete="off" aria-label="Mensaje">
+        <button class="btn-chat" id="chatEnviar">Enviar</button>
+      </div>
+    </div>
     <div id="viewSol" hidden></div>
     <div id="viewAus" hidden>
       <label for="ausTipo">Registrar mi ausencia</label>
@@ -89,7 +86,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=10"></script>
-<script>if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});</script>
+<script type="module" src="app.js?v=8"></script>
 </body>
 </html>
