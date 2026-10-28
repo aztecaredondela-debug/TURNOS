@@ -70,6 +70,17 @@ button{font-family:inherit}
 .pie-q{color:#666;font-size:.75rem;text-align:center;margin:8px 0 16px}
 .prox{display:flex;justify-content:space-between;align-items:center;width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px;margin-bottom:6px;color:#fff;cursor:pointer;font-size:.85rem;text-transform:capitalize}
 .c-m{color:var(--color-m)}.c-t{color:var(--color-t)}.c-n{color:var(--color-n)}
-.prox.abierto{border-color:var(--color-libre);margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
-.prox-det{background:#0d1117;border:1px solid var(--color-libre);border-top:0;border-radius:0 0 10px 10px;padding:10px;margin-bottom:8px}
-.prox-det .btn-sec{margin:6px 0 0}
+#badgeChat{background:var(--color-reset);color:#fff;border-radius:10px;padding:0 6px;font-size:.75rem}
+#badgeChat:empty{display:none}
+.festivo span{color:#ff6b6b;font-weight:700}
+.festivo-linea{color:#ff6b6b;font-size:.85rem;font-weight:700;margin:4px 0 10px}
+#chatMsgs{height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding:4px}
+.burbuja{position:relative;max-width:80%;background:#21262d;border-radius:12px;padding:8px 10px;font-size:.9rem;align-self:flex-start;white-space:pre-wrap;word-break:break-word}
+.burbuja.yo{align-self:flex-end;background:rgba(46,204,113,.2)}
+.burbuja .quien{font-size:.7rem;color:var(--color-m);font-weight:700;margin-bottom:2px}
+.burbuja .hora{font-size:.65rem;color:#888;margin-left:8px}
+.burbuja .borrar{background:none;border:none;cursor:pointer;font-size:.75rem;opacity:.6;padding:0 0 0 6px}
+.dia-sep{align-self:center;font-size:.7rem;color:#888;margin:6px 0;text-transform:capitalize}
+.chat-form{display:flex;gap:8px}
+.chat-form input{flex:1;margin-bottom:0}
+.btn-chat{background:var(--color-libre);color:#000;border:none;border-radius:8px;padding:0 16px;font-weight:700;cursor:pointer}
