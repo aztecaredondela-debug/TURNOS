@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34086517/README.md)
+[README.md](https://github.com/user-attachments/files/34101610/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo (con festivos y días de convenio): cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -23,7 +23,7 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 - `operarios/{id}`: nombre, ref (fecha), idx (posición en el ciclo), pinHash, fijo (opcional: `M` o `T` = mañana/tarde fijo de lunes a viernes; `S` = semanas alternas mañana/tarde de lunes a viernes, con `ref` = un día de una semana e `idx` 0 = esa semana de mañana, 1 = de tarde; libran fines de semana y festivos)
 - `notas/{fecha}/{id}`: texto
 - `cambios/{fecha}/{id}`: turno resultante tras un cambio (`LC` = libre por cambio)
-- `ausencias/{fecha}/{id}`: código del tipo de ausencia (`V` vacaciones, `B` baja, `LD` libre disposición, `FA` familiar, `MA` maternidad/paternidad, `OT` otros). Los tipos se definen en `TIPOS_AUS` de `ciclo.js`
+- `ausencias/{fecha}/{id}`: código del tipo de ausencia (`V` vacaciones, `B` baja, `LD` libre disposición, `VA`/`LA` vacaciones y libre disposición del año anterior (días pendientes que se disfrutan este año), `FA` familiar, `MA` maternidad/paternidad, `OT` otros). Los tipos se definen en `TIPOS_AUS` de `ciclo.js`
 - `chat/{id}`: autor, texto, t (hora en milisegundos)
 - `solicitudes/{id}`: fecha, solicitante, estado, ofertas
 - `operarios/{id}/admin`: `true` solo se puede poner a mano desde la consola de Firebase; da acceso a la pestaña Equipo
