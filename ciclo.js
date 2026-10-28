@@ -11,6 +11,15 @@ export const dayNum = s => { const [y, m, d] = s.split("-").map(Number); return 
 
 // op = { ref: "yyyy-mm-dd", idx: 0..69 }
 export function turnoCiclo(op, fecha) {
+  // Semanas alternas (op.fijo = "S"): L-V una semana de mañana y la siguiente de tarde; ref = un día de una semana, idx 0 = esa semana de mañana, 1 = de tarde
+  if (op.fijo === "S") {
+    const wd = n => (new Date(n * 86400000).getUTCDay() + 6) % 7, n = dayNum(fecha);
+    if (wd(n) >= 5) return "DS";
+    const r = dayNum(op.ref), sem = Math.floor(((n - wd(n)) - (r - wd(r))) / 7);
+    return (sem + op.idx) % 2 === 0 ? "M" : "T";
+  }
+  // Horario fijo (op.fijo = "M" o "T"): ese turno de lunes a viernes, libre sábado y domingo
+  if (op.fijo === "M" || op.fijo === "T") return (new Date(dayNum(fecha) * 86400000).getUTCDay() + 6) % 7 >= 5 ? "DS" : op.fijo;
   let i = (op.idx + Math.round(dayNum(fecha) - dayNum(op.ref))) % CICLO.length;
   if (i < 0) i += CICLO.length;
   return CICLO[i];
