@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=9";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=9";
-import { FESTIVOS, CONVENIO } from "./festivos.js?v=9";
+import { firebaseConfig } from "./firebase-config.js?v=11";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=11";
+import { FESTIVOS, CONVENIO } from "./festivos.js?v=11";
 
-const VERSION = 9;
+const VERSION = 11;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -28,7 +28,9 @@ let view = new Date(), tab = "cal", modalFecha = null;
 
 const nom = id => ops[id]?.nombre ?? "?";
 // Prioridad: ausencia > cambio de turno > ciclo
-const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
+// Un fijo de L-V libra los festivos; el resto sigue su ciclo
+const turnoBase = (id, f) => { const t = turnoCiclo(ops[id], f); return ops[id].fijo && FESTIVOS[f] && !esLibre(t) ? "DF" : t; };
+const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoBase(id, f);
 const etiq = t => TIPOS_AUS[t]?.etq ?? t;
 const festivo = f => FESTIVOS[f] ? (FESTIVOS[f] === "F" ? "Festivo" : "Festivo · " + FESTIVOS[f]) : null;
 const nomTurno = t => TIPOS_AUS[t]?.nombre ?? ({ m: "Mañana", t: "Tarde", n: "Noche", libre: "Libre" })[tipoTurno(t)];
@@ -56,6 +58,7 @@ function pintarSelectorOperarios() {
   $("nuevoArea").hidden = sel.value !== NUEVO;
 }
 $("selOp").onchange = () => { $("nuevoArea").hidden = $("selOp").value !== NUEVO; };
+$("tipoHor").onchange = () => { const t = $("tipoHor").value; $("rotArea").hidden = t === "M" || t === "T"; $("cicloSel").hidden = t === "S"; $("semSel").hidden = t !== "S"; };
 
 $("btnEntrar").onclick = async () => {
   const msg = $("loginMsg"); msg.textContent = "";
@@ -66,10 +69,11 @@ $("btnEntrar").onclick = async () => {
     if (id === NUEVO) {
       const nombre = $("nuevoNombre").value.trim();
       if (!nombre) { msg.textContent = "Escribe tu nombre."; return; }
-      if (!$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
+      const fijo = $("tipoHor").value;
+      if ((!fijo || fijo === "S") && !$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
       id = push(ref(db, "operarios")).key;
       await set(ref(db, "operarios/" + id), {
-        nombre, ref: $("fechaBase").value, idx: parseInt($("turnoBase").value), pinHash: await hashPin(pin, id)
+        nombre, ref: $("fechaBase").value || hoyIso(), idx: fijo === "S" ? parseInt($("semBase").value) : fijo ? 0 : parseInt($("turnoBase").value), pinHash: await hashPin(pin, id), ...(fijo ? { fijo } : {})
       });
     } else if (ops[id].pinHash !== await hashPin(pin, id)) {
       msg.textContent = "PIN incorrecto."; return;
@@ -308,15 +312,23 @@ function editarOp(id) {
   const sel = h("select");
   for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
   sel.value = o.idx;
+  const tipo = h("select");
+  [["", "Turnos rotativos (ciclo)"], ["M", "Fijo mañana (L-V)"], ["T", "Fijo tarde (L-V)"], ["S", "Una semana mañana y otra tarde (L-V)"]].forEach(([v, n]) => tipo.add(new Option(n, v)));
+  tipo.value = o.fijo || "";
+  const sem = h("select"); [["0", "Mañana"], ["1", "Tarde"]].forEach(([v, n]) => sem.add(new Option(n, v)));
+  sem.value = o.fijo === "S" ? o.idx : 0;
+  const lblSel = h("label", {}, "Su turno ese día"), lblSem = h("label", {}, "Esa semana está de");
+  const aj = () => { const s = tipo.value === "S"; sel.hidden = lblSel.hidden = s; sem.hidden = lblSem.hidden = !s; };
+  tipo.onchange = aj; aj();
   const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
   body.append(h("h3", {}, "Editar compañero"),
-    h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
-    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, "Nombre"), nombre, h("label", {}, "Horario"), tipo, h("label", {}, "Fecha de referencia"), fr,
+    lblSel, sel, lblSem, sem, h("label", {}, "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
         if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
         if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
-        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
+        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(tipo.value === "S" ? sem.value : sel.value), fijo: tipo.value || null };
         if (pin.value) datos.pinHash = await hashPin(pin.value, id);
         await update(ref(db, "operarios/" + id), datos);
         cerrar();
