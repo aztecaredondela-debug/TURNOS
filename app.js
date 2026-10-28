@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=8";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=8";
-import { FESTIVOS } from "./festivos.js?v=8";
+import { firebaseConfig } from "./firebase-config.js?v=9";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=9";
+import { FESTIVOS, CONVENIO } from "./festivos.js?v=9";
 
-const VERSION = 8;
+const VERSION = 9;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -31,6 +31,7 @@ const nom = id => ops[id]?.nombre ?? "?";
 const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
 const etiq = t => TIPOS_AUS[t]?.etq ?? t;
 const festivo = f => FESTIVOS[f] ? (FESTIVOS[f] === "F" ? "Festivo" : "Festivo · " + FESTIVOS[f]) : null;
+const nomTurno = t => TIPOS_AUS[t]?.nombre ?? ({ m: "Mañana", t: "Tarde", n: "Noche", libre: "Libre" })[tipoTurno(t)];
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
 const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
@@ -102,8 +103,15 @@ function solsAbiertas() {
   return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy && ops[s.solicitante]).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
 }
 
+function renderHoy() {
+  const f = hoyIso(), t = turnoEf(me, f), c = $("hoyCard");
+  c.innerHTML = ""; c.className = "hoy " + claseTurno(t); c.onclick = () => abrirDia(f);
+  const esp = FESTIVOS[f] ? "Festivo" : CONVENIO[f] ? "Convenio · " + CONVENIO[f] : "";
+  c.append(h("div", {}, h("small", {}, "Hoy · " + fmt(f)), h("div", { class: "nombre" }, nomTurno(t)), esp ? h("em", {}, esp) : null), h("strong", {}, etiq(t)));
+}
+
 function renderCal() {
-  const grid = $("grid"); grid.innerHTML = "";
+  const grid = $("grid"); grid.innerHTML = ""; renderHoy();
   const m = view.getMonth(), a = view.getFullYear(), hoy = hoyIso();
   $("monthLabel").textContent = view.toLocaleString("es", { month: "long", year: "numeric" });
   DIAS.forEach(d => grid.append(h("div", { class: "day-name" }, d)));
@@ -113,9 +121,10 @@ function renderCal() {
   for (let d = 1; d <= new Date(a, m + 1, 0).getDate(); d++) {
     const f = iso(a, m, d), t = turnoEf(me, f);
     const hayNota = notas[f] && Object.keys(notas[f]).length;
-    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}${FESTIVOS[f] ? " festivo" : ""}`, onclick: () => abrirDia(f) },
+    const pt = (c, on) => on ? h("i", { class: "dot " + c }) : null;
+    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}`, onclick: () => abrirDia(f), "aria-label": fmt(f) + ", " + etiq(t) },
       h("span", {}, String(d)), h("b", {}, etiq(t)),
-      h("div", { class: "icons" }, (FESTIVOS[f] ? "🎉" : "") + (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
+      h("div", { class: "icons" }, pt("f", FESTIVOS[f]), pt("cv", CONVENIO[f]), pt("nt", hayNota), pt("sl", abiertas.has(f)), pt("cb", cambios[f]?.[me] && !ausencias[f]?.[me])));
     grid.append(cell);
   }
 }
@@ -124,11 +133,12 @@ function renderCal() {
 function abrirDia(f) { modalFecha = f; renderModal(); $("modal").hidden = false; }
 const cerrar = () => { $("modal").hidden = true; modalFecha = null; };
 $("modal").onclick = e => { if (e.target === $("modal")) cerrar(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("modal").hidden) cerrar(); });
 
 function renderModal() {
   const f = modalFecha, body = $("modalBody"); body.innerHTML = "";
   const mio = turnoEf(me, f);
-  body.append(h("h3", {}, fmt(f)), festivo(f) ? h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)) : null, h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
+  body.append(h("h3", {}, fmt(f)), festivo(f) ? h("div", { class: "etq f" }, festivo(f)) : null, CONVENIO[f] ? h("div", { class: "etq cv" }, "Convenio · " + CONVENIO[f]) : null, h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
 
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
   Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
@@ -347,12 +357,13 @@ function gruposDelDia(f) {
 function renderQuien() {
   if (!me || !ops[me]) return;
   const f = quienFecha, hoy = hoyIso();
-  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + (FESTIVOS[f] ? " 🎉" : "");
+  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + "";
   $("qHoy").hidden = f === hoy;
   if ($("qFecha").value !== f) $("qFecha").value = f;
 
   const lista = $("listaQuien"); lista.innerHTML = "";
-  if (festivo(f)) lista.append(h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)));
+  if (festivo(f)) lista.append(h("div", { class: "etq f" }, festivo(f)));
+  if (CONVENIO[f]) lista.append(h("div", { class: "etq cv" }, "Convenio · " + CONVENIO[f]));
   const g = gruposDelDia(f);
   for (const [k, titulo] of GRUPOS) {
     const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
@@ -367,7 +378,7 @@ function renderQuien() {
   for (let i = 1; i <= 7; i++) {
     const d = sumaDias(f, i), gd = gruposDelDia(d);
     prox.append(h("button", { class: "prox", onclick: () => cambiarQuien(d) },
-      h("span", {}, fmt(d) + (FESTIVOS[d] ? " 🎉" : "")),
+      h("span", {}, fmt(d), " ", FESTIVOS[d] || CONVENIO[d] ? h("i", { class: "dot " + (FESTIVOS[d] ? "f" : "cv") }) : null),
       h("span", {}, h("b", { class: "c-m" }, `M ${gd.m.length}`), " ", h("b", { class: "c-t" }, `T ${gd.t.length}`), " ", h("b", { class: "c-n" }, `N ${gd.n.length}`), gd.aus.length ? ` · Aus ${gd.aus.length}` : "")));
   }
 }
@@ -421,7 +432,7 @@ function renderChat() {
 }
 
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); $("avatar").textContent = nom(me).charAt(0).toUpperCase(); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
