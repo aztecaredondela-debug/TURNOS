@@ -32,6 +32,8 @@ export const TIPOS_AUS = {
   V:  { nombre: "Vacaciones",             etq: "VAC",  icono: "🏖️" },
   B:  { nombre: "Baja",                   etq: "BAJA", icono: "🩺" },
   LD: { nombre: "Libre disposición",      etq: "LD",   icono: "🗓️" },
+  VA: { nombre: "Vacaciones año anterior", etq: "VAC·A", icono: "⏳" },
+  LA: { nombre: "Libre disp. año anterior", etq: "LD·A", icono: "⏳" },
   FA: { nombre: "Permiso familiar",       etq: "FAM",  icono: "👪" },
   MA: { nombre: "Maternidad/paternidad",  etq: "MAT",  icono: "👶" },
   OT: { nombre: "Otros permisos",         etq: "PERM", icono: "📋" },
