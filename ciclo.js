@@ -9,18 +9,8 @@ export const hoyIso = () => { const n = new Date(); return iso(n.getFullYear(), 
 // Días absolutos en UTC: inmune al cambio de hora de verano/invierno
 export const dayNum = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
 
-// Lunes (en días absolutos) de la semana de una fecha. 1970-01-01 fue jueves.
-const lunesNum = s => { const n = dayNum(s); return n - ((n + 3) % 7); };
-
-// op = { ref: "yyyy-mm-dd", idx: 0..69 }  -> ciclo rotativo de 70 días
-// op = { ciclo: "LV", ref, idx: 0|1 }     -> solo lunes a viernes, semanas alternas:
-//   idx 0 = la semana de "ref" es de mañana, idx 1 = de tarde. Sábados y domingos libres (DS).
+// op = { ref: "yyyy-mm-dd", idx: 0..69 }
 export function turnoCiclo(op, fecha) {
-  if (op.ciclo === "LV") {
-    if ((dayNum(fecha) + 3) % 7 >= 5) return "DS";
-    const sem = Math.round((lunesNum(fecha) - lunesNum(op.ref)) / 7);
-    return ((op.idx === 0) === (Math.abs(sem) % 2 === 0)) ? "M" : "T";
-  }
   let i = (op.idx + Math.round(dayNum(fecha) - dayNum(op.ref))) % CICLO.length;
   if (i < 0) i += CICLO.length;
   return CICLO[i];
