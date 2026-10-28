@@ -17,3 +17,13 @@ export const FESTIVOS = {
   "2026-12-08": "F",
   "2026-12-25": "F",
 };
+
+// Días de convenio "sen actividade programada" (hoja del convenio, 2026).
+// Se muestran como aviso en calendario y detalle; no cambian los turnos.
+export const CONVENIO = {
+  "2026-01-02": "Sin actividad programada",
+  "2026-03-20": "Sin actividad programada",
+  "2026-12-07": "Sin actividad programada",
+  "2026-12-24": "Sin actividad programada",
+  "2026-12-31": "Sin actividad programada",
+};
