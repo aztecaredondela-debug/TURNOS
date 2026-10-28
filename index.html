@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Turnos - Mantenimiento</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <div id="errBar" hidden></div>
@@ -32,10 +32,20 @@
       <div id="nuevoArea" hidden>
         <label for="nuevoNombre">Tu nombre</label>
         <input id="nuevoNombre" maxlength="30" autocomplete="off">
-        <label for="fechaBase">Fecha de referencia</label>
-        <input type="date" id="fechaBase">
-        <label for="turnoBase">Tu turno ese día</label>
-        <select id="turnoBase"></select>
+        <label for="tipoHor">Tu horario</label>
+        <select id="tipoHor"><option value="">Turnos rotativos (ciclo)</option><option value="M">Fijo mañana (L-V)</option><option value="T">Fijo tarde (L-V)</option><option value="S">Una semana mañana y otra tarde (L-V)</option></select>
+        <div id="rotArea">
+          <label for="fechaBase">Fecha de referencia</label>
+          <input type="date" id="fechaBase">
+          <div id="cicloSel">
+            <label for="turnoBase">Tu turno ese día</label>
+            <select id="turnoBase"></select>
+          </div>
+          <div id="semSel" hidden>
+            <label for="semBase">Esa semana estás de</label>
+            <select id="semBase"><option value="0">Mañana</option><option value="1">Tarde</option></select>
+          </div>
+        </div>
       </div>
       <label for="pin">PIN (4 cifras)</label>
       <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
@@ -110,6 +120,6 @@
 </div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=9"></script>
+<script type="module" src="app.js?v=11"></script>
 </body>
 </html>
