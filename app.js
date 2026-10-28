@@ -1,10 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, push, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=10";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=10";
+import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { firebaseConfig } from "./firebase-config.js?v=8";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=8";
+import { FESTIVOS } from "./festivos.js?v=8";
 
-const VERSION = 10;
+const VERSION = 8;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -29,6 +30,7 @@ const nom = id => ops[id]?.nombre ?? "?";
 // Prioridad: ausencia > cambio de turno > ciclo
 const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
 const etiq = t => TIPOS_AUS[t]?.etq ?? t;
+const festivo = f => FESTIVOS[f] ? (FESTIVOS[f] === "F" ? "Festivo" : "Festivo · " + FESTIVOS[f]) : null;
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
 const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
@@ -53,7 +55,6 @@ function pintarSelectorOperarios() {
   $("nuevoArea").hidden = sel.value !== NUEVO;
 }
 $("selOp").onchange = () => { $("nuevoArea").hidden = $("selOp").value !== NUEVO; };
-$("tipoCiclo").onchange = () => { const lv = $("tipoCiclo").value === "LV"; $("blkRot").hidden = lv; $("blkLV").hidden = !lv; };
 
 $("btnEntrar").onclick = async () => {
   const msg = $("loginMsg"); msg.textContent = "";
@@ -66,10 +67,8 @@ $("btnEntrar").onclick = async () => {
       if (!nombre) { msg.textContent = "Escribe tu nombre."; return; }
       if (!$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
       id = push(ref(db, "operarios")).key;
-      const lv = $("tipoCiclo").value === "LV";
       await set(ref(db, "operarios/" + id), {
-        nombre, ref: $("fechaBase").value, idx: parseInt(lv ? $("lvTurno").value : $("turnoBase").value), pinHash: await hashPin(pin, id),
-        ...(lv ? { ciclo: "LV" } : {})
+        nombre, ref: $("fechaBase").value, idx: parseInt($("turnoBase").value), pinHash: await hashPin(pin, id)
       });
     } else if (ops[id].pinHash !== await hashPin(pin, id)) {
       msg.textContent = "PIN incorrecto."; return;
@@ -91,7 +90,8 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq";
+  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat";
+  if (tab === "chat") { marcarLeido(); renderChat(); $("chatTxt").focus(); }
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
 $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1); render(); };
@@ -113,9 +113,9 @@ function renderCal() {
   for (let d = 1; d <= new Date(a, m + 1, 0).getDate(); d++) {
     const f = iso(a, m, d), t = turnoEf(me, f);
     const hayNota = notas[f] && Object.keys(notas[f]).length;
-    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}`, onclick: () => abrirDia(f) },
+    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}${FESTIVOS[f] ? " festivo" : ""}`, onclick: () => abrirDia(f) },
       h("span", {}, String(d)), h("b", {}, etiq(t)),
-      h("div", { class: "icons" }, (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
+      h("div", { class: "icons" }, (FESTIVOS[f] ? "🎉" : "") + (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
     grid.append(cell);
   }
 }
@@ -128,7 +128,7 @@ $("modal").onclick = e => { if (e.target === $("modal")) cerrar(); };
 function renderModal() {
   const f = modalFecha, body = $("modalBody"); body.innerHTML = "";
   const mio = turnoEf(me, f);
-  body.append(h("h3", {}, fmt(f)), h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
+  body.append(h("h3", {}, fmt(f)), festivo(f) ? h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)) : null, h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
 
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
   Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
@@ -297,23 +297,16 @@ function editarOp(id) {
   const fr = h("input", { type: "date", value: o.ref });
   const sel = h("select");
   for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
-  sel.value = o.ciclo === "LV" ? 0 : o.idx;
-  const tipo = h("select"); tipo.add(new Option("Rotativo (ciclo de 70 días)", "70")); tipo.add(new Option("Lunes a viernes (semana mañana / semana tarde)", "LV"));
-  tipo.value = o.ciclo === "LV" ? "LV" : "70";
-  const lvSel = h("select"); lvSel.add(new Option("Mañana", "0")); lvSel.add(new Option("Tarde", "1"));
-  lvSel.value = o.ciclo === "LV" ? String(o.idx) : "0";
-  const blkRot = h("div", {}, h("label", {}, "Su turno ese día"), sel), blkLV = h("div", {}, h("label", {}, "Esa semana (la de la fecha) trabaja de"), lvSel);
-  const alt = () => { blkRot.hidden = tipo.value === "LV"; blkLV.hidden = tipo.value !== "LV"; }; tipo.onchange = alt; alt();
+  sel.value = o.idx;
   const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
   body.append(h("h3", {}, "Editar compañero"),
     h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
-    h("label", {}, "Tipo de turno"), tipo, blkRot, blkLV, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
         if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
         if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
-        const lv = tipo.value === "LV";
-        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(lv ? lvSel.value : sel.value), ciclo: lv ? "LV" : null };
+        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
         if (pin.value) datos.pinHash = await hashPin(pin.value, id);
         await update(ref(db, "operarios/" + id), datos);
         cerrar();
@@ -337,7 +330,6 @@ async function borrarOp(id) {
 
 /* ---------- Pestaña "Quién": quién trabaja cada día ---------- */
 let quienFecha = hoyIso();
-const abiertosQuien = new Set();
 const GRUPOS = [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]];
 const cambiarQuien = f => { quienFecha = f; renderQuien(); };
 $("qPrev").onclick = () => cambiarQuien(sumaDias(quienFecha, -1));
@@ -355,11 +347,12 @@ function gruposDelDia(f) {
 function renderQuien() {
   if (!me || !ops[me]) return;
   const f = quienFecha, hoy = hoyIso();
-  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f);
+  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + (FESTIVOS[f] ? " 🎉" : "");
   $("qHoy").hidden = f === hoy;
   if ($("qFecha").value !== f) $("qFecha").value = f;
 
   const lista = $("listaQuien"); lista.innerHTML = "";
+  if (festivo(f)) lista.append(h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)));
   const g = gruposDelDia(f);
   for (const [k, titulo] of GRUPOS) {
     const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
@@ -372,26 +365,63 @@ function renderQuien() {
 
   const prox = $("proxQuien"); prox.innerHTML = "";
   for (let i = 1; i <= 7; i++) {
-    const d = sumaDias(f, i), gd = gruposDelDia(d), abierto = abiertosQuien.has(d);
-    prox.append(h("button", { class: "prox" + (abierto ? " abierto" : ""), onclick: () => { abiertosQuien.has(d) ? abiertosQuien.delete(d) : abiertosQuien.add(d); renderQuien(); } },
-      h("span", {}, (abierto ? "▾ " : "▸ ") + fmt(d)),
+    const d = sumaDias(f, i), gd = gruposDelDia(d);
+    prox.append(h("button", { class: "prox", onclick: () => cambiarQuien(d) },
+      h("span", {}, fmt(d) + (FESTIVOS[d] ? " 🎉" : "")),
       h("span", {}, h("b", { class: "c-m" }, `M ${gd.m.length}`), " ", h("b", { class: "c-t" }, `T ${gd.t.length}`), " ", h("b", { class: "c-n" }, `N ${gd.n.length}`), gd.aus.length ? ` · Aus ${gd.aus.length}` : "")));
-    if (abierto) {
-      const det = h("div", { class: "prox-det" });
-      for (const [k, titulo] of GRUPOS) {
-        if (k === "libre") continue;
-        if (k === "aus" && !gd.aus.length) continue;
-        det.append(h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${gd[k].length})`),
-          gd[k].length ? gd[k].map(({ id, t }) => h("span", { class: "chip" + (id === me ? " yo" : "") }, nom(id), " ", h("small", {}, etiq(t)), cambios[d]?.[id] && k !== "aus" ? " ↔️" : "")) : h("span", { class: "vacio-q" }, "—")));
-      }
-      det.append(h("button", { class: "btn-sec", onclick: () => cambiarQuien(d) }, "Ir a este día"));
-      prox.append(det);
-    }
   }
 }
 
+/* ---------- Chat general (últimos 100 mensajes) ---------- */
+let chat = {};
+let chatLeido = "";
+try { chatLeido = localStorage.getItem("turnos_chat_leido") || ""; } catch (e) {}
+
+function marcarLeido() {
+  const k = Object.keys(chat).sort().pop();
+  if (!k) return;
+  chatLeido = k;
+  try { localStorage.setItem("turnos_chat_leido", k); } catch (e) {}
+}
+
+async function enviarChat() {
+  const inp = $("chatTxt"), txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = "";
+  try { await push(ref(db, "chat"), { autor: me, texto: txt.slice(0, 500), t: Date.now() }); }
+  catch (e) { inp.value = txt; throw e; }
+}
+$("chatEnviar").onclick = enviarChat;
+$("chatTxt").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); enviarChat(); } };
+
+function renderChat() {
+  if (!me || !ops[me]) return;
+  const keys = Object.keys(chat).sort(); // las claves de Firebase van en orden cronológico
+  if (tab === "chat") marcarLeido();
+  const nuevos = keys.filter(k => k > chatLeido && chat[k].autor !== me).length;
+  $("badgeChat").textContent = nuevos || "";
+  if (tab !== "chat") return;
+
+  const cont = $("chatMsgs");
+  const abajo = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 80;
+  cont.innerHTML = "";
+  if (!keys.length) cont.append(h("div", { class: "vacio" }, "Aún no hay mensajes. ¡Escribe el primero!"));
+  let diaPrev = "";
+  keys.forEach(k => {
+    const m = chat[k], d = new Date(m.t), f = iso(d.getFullYear(), d.getMonth(), d.getDate());
+    if (f !== diaPrev) { cont.append(h("div", { class: "dia-sep" }, f === hoyIso() ? "Hoy" : fmt(f))); diaPrev = f; }
+    const yo = m.autor === me;
+    cont.append(h("div", { class: "burbuja" + (yo ? " yo" : "") },
+      yo ? null : h("div", { class: "quien" }, nom(m.autor)),
+      m.texto,
+      h("span", { class: "hora" }, d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })),
+      yo || ops[me]?.admin ? h("button", { class: "borrar", "aria-label": "Borrar mensaje", onclick: () => { if (confirm("¿Borrar este mensaje?")) set(ref(db, "chat/" + k), null); } }, "🗑") : null));
+  });
+  if (abajo) cont.scrollTop = cont.scrollHeight;
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderSol(); renderAus(); renderEq(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
@@ -405,6 +435,7 @@ signInAnonymously(getAuth(app)).then(() => {
   onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); }, errLectura("cambios"));
   onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); }, errLectura("ausencias"));
   onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); }, errLectura("solicitudes"));
+  onValue(query(ref(db, "chat"), limitToLast(100)), s => { chat = s.val() || {}; render(); }, errLectura("chat"));
 }).catch(e => {
   const m = "No se pudo conectar con Firebase: " + e.message + ". ¿Está activado el acceso Anónimo?";
   $("loginMsg").textContent = m; window.mostrarError?.(m);
