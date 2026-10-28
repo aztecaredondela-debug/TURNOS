@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=11";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=11";
-import { FESTIVOS, CONVENIO } from "./festivos.js?v=11";
+import { firebaseConfig } from "./firebase-config.js?v=13";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=13";
+import { FESTIVOS, CONVENIO } from "./festivos.js?v=13";
 
-const VERSION = 11;
+const VERSION = 13;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -270,6 +270,20 @@ $("btnAus").onclick = async () => {
 function renderAus() {
   const cont = $("listaAus"); cont.innerHTML = "";
   const hoy = hoyIso(), items = [];
+  // Acumulado del año de mis días registrados, por tipo
+  const anio = hoy.slice(0, 4), mios = {};
+  for (const [f, porOp] of Object.entries(ausencias)) {
+    const t = porOp[me];
+    if (!t || !f.startsWith(anio)) continue;
+    const x = mios[t] ??= { tot: 0, lab: 0, pend: 0 };
+    x.tot++; if (trabaja(turnoBase(me, f))) x.lab++; if (f > hoy) x.pend++;
+  }
+  cont.append(h("label", {}, `Mis días pedidos en ${anio}`));
+  cont.append(Object.keys(mios).length
+    ? h("div", { class: "resumen" }, ...Object.entries(mios).map(([t, x]) => h("div", { class: "res" },
+        h("span", {}, `${TIPOS_AUS[t]?.icono ?? "📋"} ${TIPOS_AUS[t]?.nombre ?? t}`), h("b", {}, String(x.tot)),
+        h("small", {}, `${x.lab} de trabajo · ${x.pend} por disfrutar`))))
+    : h("div", { class: "pie-q" }, "Aún no has registrado ningún día este año."));
   for (const [f, porOp] of Object.entries(ausencias)) for (const [id, t] of Object.entries(porOp)) if (ops[id]) items.push({ f, id, t });
   items.sort((a, b) => a.id.localeCompare(b.id) || a.t.localeCompare(b.t) || a.f.localeCompare(b.f));
   const rangos = [];
