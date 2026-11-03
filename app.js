@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=13";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=13";
-import { FESTIVOS, CONVENIO } from "./festivos.js?v=13";
+import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { firebaseConfig } from "./firebase-config.js?v=9";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=9";
+import { FESTIVOS } from "./festivos.js?v=9";
 
-const VERSION = 13;
+const VERSION = 9;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -28,12 +28,9 @@ let view = new Date(), tab = "cal", modalFecha = null;
 
 const nom = id => ops[id]?.nombre ?? "?";
 // Prioridad: ausencia > cambio de turno > ciclo
-// Un fijo de L-V libra los festivos; el resto sigue su ciclo
-const turnoBase = (id, f) => { const t = turnoCiclo(ops[id], f); return ops[id].fijo && FESTIVOS[f] && !esLibre(t) ? "DF" : t; };
-const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoBase(id, f);
+const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
 const etiq = t => TIPOS_AUS[t]?.etq ?? t;
 const festivo = f => FESTIVOS[f] ? (FESTIVOS[f] === "F" ? "Festivo" : "Festivo · " + FESTIVOS[f]) : null;
-const nomTurno = t => TIPOS_AUS[t]?.nombre ?? ({ m: "Mañana", t: "Tarde", n: "Noche", libre: "Libre" })[tipoTurno(t)];
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
 const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
@@ -58,7 +55,6 @@ function pintarSelectorOperarios() {
   $("nuevoArea").hidden = sel.value !== NUEVO;
 }
 $("selOp").onchange = () => { $("nuevoArea").hidden = $("selOp").value !== NUEVO; };
-$("tipoHor").onchange = () => { const t = $("tipoHor").value; $("rotArea").hidden = t === "M" || t === "T"; $("cicloSel").hidden = t === "S"; $("semSel").hidden = t !== "S"; };
 
 $("btnEntrar").onclick = async () => {
   const msg = $("loginMsg"); msg.textContent = "";
@@ -69,11 +65,10 @@ $("btnEntrar").onclick = async () => {
     if (id === NUEVO) {
       const nombre = $("nuevoNombre").value.trim();
       if (!nombre) { msg.textContent = "Escribe tu nombre."; return; }
-      const fijo = $("tipoHor").value;
-      if ((!fijo || fijo === "S") && !$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
+      if (!$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
       id = push(ref(db, "operarios")).key;
       await set(ref(db, "operarios/" + id), {
-        nombre, ref: $("fechaBase").value || hoyIso(), idx: fijo === "S" ? parseInt($("semBase").value) : fijo ? 0 : parseInt($("turnoBase").value), pinHash: await hashPin(pin, id), ...(fijo ? { fijo } : {})
+        nombre, ref: $("fechaBase").value, idx: parseInt($("turnoBase").value), pinHash: await hashPin(pin, id)
       });
     } else if (ops[id].pinHash !== await hashPin(pin, id)) {
       msg.textContent = "PIN incorrecto."; return;
@@ -107,15 +102,8 @@ function solsAbiertas() {
   return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy && ops[s.solicitante]).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
 }
 
-function renderHoy() {
-  const f = hoyIso(), t = turnoEf(me, f), c = $("hoyCard");
-  c.innerHTML = ""; c.className = "hoy " + claseTurno(t); c.onclick = () => abrirDia(f);
-  const esp = FESTIVOS[f] ? "Festivo" : CONVENIO[f] ? "Convenio · " + CONVENIO[f] : "";
-  c.append(h("div", {}, h("small", {}, "Hoy · " + fmt(f)), h("div", { class: "nombre" }, nomTurno(t)), esp ? h("em", {}, esp) : null), h("strong", {}, etiq(t)));
-}
-
 function renderCal() {
-  const grid = $("grid"); grid.innerHTML = ""; renderHoy();
+  const grid = $("grid"); grid.innerHTML = "";
   const m = view.getMonth(), a = view.getFullYear(), hoy = hoyIso();
   $("monthLabel").textContent = view.toLocaleString("es", { month: "long", year: "numeric" });
   DIAS.forEach(d => grid.append(h("div", { class: "day-name" }, d)));
@@ -125,10 +113,9 @@ function renderCal() {
   for (let d = 1; d <= new Date(a, m + 1, 0).getDate(); d++) {
     const f = iso(a, m, d), t = turnoEf(me, f);
     const hayNota = notas[f] && Object.keys(notas[f]).length;
-    const pt = (c, on) => on ? h("i", { class: "dot " + c }) : null;
-    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}`, onclick: () => abrirDia(f), "aria-label": fmt(f) + ", " + etiq(t) },
+    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}${FESTIVOS[f] ? " festivo" : ""}`, onclick: () => abrirDia(f) },
       h("span", {}, String(d)), h("b", {}, etiq(t)),
-      h("div", { class: "icons" }, pt("f", FESTIVOS[f]), pt("cv", CONVENIO[f]), pt("nt", hayNota), pt("sl", abiertas.has(f)), pt("cb", cambios[f]?.[me] && !ausencias[f]?.[me])));
+      h("div", { class: "icons" }, (FESTIVOS[f] ? "🎉" : "") + (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
     grid.append(cell);
   }
 }
@@ -137,12 +124,11 @@ function renderCal() {
 function abrirDia(f) { modalFecha = f; renderModal(); $("modal").hidden = false; }
 const cerrar = () => { $("modal").hidden = true; modalFecha = null; };
 $("modal").onclick = e => { if (e.target === $("modal")) cerrar(); };
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("modal").hidden) cerrar(); });
 
 function renderModal() {
   const f = modalFecha, body = $("modalBody"); body.innerHTML = "";
   const mio = turnoEf(me, f);
-  body.append(h("h3", {}, fmt(f)), festivo(f) ? h("div", { class: "etq f" }, festivo(f)) : null, CONVENIO[f] ? h("div", { class: "etq cv" }, "Convenio · " + CONVENIO[f]) : null, h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
+  body.append(h("h3", {}, fmt(f)), festivo(f) ? h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)) : null, h("div", { class: "grupo" }, `Tu turno: `, h("b", {}, etiq(mio))));
 
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
   Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
@@ -270,20 +256,6 @@ $("btnAus").onclick = async () => {
 function renderAus() {
   const cont = $("listaAus"); cont.innerHTML = "";
   const hoy = hoyIso(), items = [];
-  // Acumulado del año de mis días registrados, por tipo
-  const anio = hoy.slice(0, 4), mios = {};
-  for (const [f, porOp] of Object.entries(ausencias)) {
-    const t = porOp[me];
-    if (!t || !f.startsWith(anio)) continue;
-    const x = mios[t] ??= { tot: 0, lab: 0, pend: 0 };
-    x.tot++; if (trabaja(turnoBase(me, f))) x.lab++; if (f > hoy) x.pend++;
-  }
-  cont.append(h("label", {}, `Mis días pedidos en ${anio}`));
-  cont.append(Object.keys(mios).length
-    ? h("div", { class: "resumen" }, ...Object.entries(mios).map(([t, x]) => h("div", { class: "res" },
-        h("span", {}, `${TIPOS_AUS[t]?.icono ?? "📋"} ${TIPOS_AUS[t]?.nombre ?? t}`), h("b", {}, String(x.tot)),
-        h("small", {}, `${x.lab} de trabajo · ${x.pend} por disfrutar`))))
-    : h("div", { class: "pie-q" }, "Aún no has registrado ningún día este año."));
   for (const [f, porOp] of Object.entries(ausencias)) for (const [id, t] of Object.entries(porOp)) if (ops[id]) items.push({ f, id, t });
   items.sort((a, b) => a.id.localeCompare(b.id) || a.t.localeCompare(b.t) || a.f.localeCompare(b.f));
   const rangos = [];
@@ -326,23 +298,15 @@ function editarOp(id) {
   const sel = h("select");
   for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
   sel.value = o.idx;
-  const tipo = h("select");
-  [["", "Turnos rotativos (ciclo)"], ["M", "Fijo mañana (L-V)"], ["T", "Fijo tarde (L-V)"], ["S", "Una semana mañana y otra tarde (L-V)"]].forEach(([v, n]) => tipo.add(new Option(n, v)));
-  tipo.value = o.fijo || "";
-  const sem = h("select"); [["0", "Mañana"], ["1", "Tarde"]].forEach(([v, n]) => sem.add(new Option(n, v)));
-  sem.value = o.fijo === "S" ? o.idx : 0;
-  const lblSel = h("label", {}, "Su turno ese día"), lblSem = h("label", {}, "Esa semana está de");
-  const aj = () => { const s = tipo.value === "S"; sel.hidden = lblSel.hidden = s; sem.hidden = lblSem.hidden = !s; };
-  tipo.onchange = aj; aj();
   const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
   body.append(h("h3", {}, "Editar compañero"),
-    h("label", {}, "Nombre"), nombre, h("label", {}, "Horario"), tipo, h("label", {}, "Fecha de referencia"), fr,
-    lblSel, sel, lblSem, sem, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
+    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
         if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
         if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
-        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(tipo.value === "S" ? sem.value : sel.value), fijo: tipo.value || null };
+        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
         if (pin.value) datos.pinHash = await hashPin(pin.value, id);
         await update(ref(db, "operarios/" + id), datos);
         cerrar();
@@ -383,13 +347,12 @@ function gruposDelDia(f) {
 function renderQuien() {
   if (!me || !ops[me]) return;
   const f = quienFecha, hoy = hoyIso();
-  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + "";
+  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + (FESTIVOS[f] ? " 🎉" : "");
   $("qHoy").hidden = f === hoy;
   if ($("qFecha").value !== f) $("qFecha").value = f;
 
   const lista = $("listaQuien"); lista.innerHTML = "";
-  if (festivo(f)) lista.append(h("div", { class: "etq f" }, festivo(f)));
-  if (CONVENIO[f]) lista.append(h("div", { class: "etq cv" }, "Convenio · " + CONVENIO[f]));
+  if (festivo(f)) lista.append(h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)));
   const g = gruposDelDia(f);
   for (const [k, titulo] of GRUPOS) {
     const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
@@ -404,7 +367,7 @@ function renderQuien() {
   for (let i = 1; i <= 7; i++) {
     const d = sumaDias(f, i), gd = gruposDelDia(d);
     prox.append(h("button", { class: "prox", onclick: () => cambiarQuien(d) },
-      h("span", {}, fmt(d), " ", FESTIVOS[d] || CONVENIO[d] ? h("i", { class: "dot " + (FESTIVOS[d] ? "f" : "cv") }) : null),
+      h("span", {}, fmt(d) + (FESTIVOS[d] ? " 🎉" : "")),
       h("span", {}, h("b", { class: "c-m" }, `M ${gd.m.length}`), " ", h("b", { class: "c-t" }, `T ${gd.t.length}`), " ", h("b", { class: "c-n" }, `N ${gd.n.length}`), gd.aus.length ? ` · Aus ${gd.aus.length}` : "")));
   }
 }
@@ -458,14 +421,19 @@ function renderChat() {
 }
 
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); $("avatar").textContent = nom(me).charAt(0).toUpperCase(); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
-signInAnonymously(getAuth(app)).then(() => {
+let uid = null;
+
+// Se activa solo cuando el móvil ya está autorizado con el código del equipo
+function iniciar() {
+  if (!me) $("loginArea").hidden = false;
   onValue(ref(db, "operarios"), s => {
     ops = s.val() || {}; pintarSelectorOperarios();
     if (me && !ops[me] && !$("mainArea").hidden) { localStorage.removeItem("turnos_me"); alert("Tu usuario ha sido eliminado."); location.reload(); return; }
+    if (me && !ops[me] && $("mainArea").hidden) { me = null; localStorage.removeItem("turnos_me"); $("loginArea").hidden = false; }
     if (me && ops[me] && $("mainArea").hidden) entrar(me); else render();
   }, errLectura("operarios"));
   onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); }, errLectura("notas"));
@@ -473,6 +441,23 @@ signInAnonymously(getAuth(app)).then(() => {
   onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); }, errLectura("ausencias"));
   onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); }, errLectura("solicitudes"));
   onValue(query(ref(db, "chat"), limitToLast(100)), s => { chat = s.val() || {}; render(); }, errLectura("chat"));
+}
+
+// Firebase solo acepta el registro si el código escrito coincide con el guardado en la base de datos
+$("btnCodigo").onclick = async () => {
+  const c = $("codigo").value.trim(), msg = $("codigoMsg");
+  msg.textContent = "";
+  if (!c) { msg.textContent = "Escribe el código."; return; }
+  try { await set(ref(db, "miembros/" + uid), c); }
+  catch (e) { msg.textContent = "Código incorrecto."; return; }
+  $("codigoArea").hidden = true; iniciar();
+};
+$("codigo").onkeydown = e => { if (e.key === "Enter") $("btnCodigo").click(); };
+
+signInAnonymously(getAuth(app)).then(async cred => {
+  uid = cred.user.uid;
+  const snap = await get(ref(db, "miembros/" + uid));
+  if (snap.exists()) iniciar(); else $("codigoArea").hidden = false;
 }).catch(e => {
   const m = "No se pudo conectar con Firebase: " + e.message + ". ¿Está activado el acceso Anónimo?";
   $("loginMsg").textContent = m; window.mostrarError?.(m);
