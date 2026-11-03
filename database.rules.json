@@ -1,59 +1,32 @@
 {
-  "rules": {
-    "miembros": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.isString() && newData.val() === root.child('codigo').val()"
-      }
+  "name": "Turnos Mantenimiento",
+  "short_name": "Turnos",
+  "description": "Turnos, cambios y comunicación del equipo de mantenimiento",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
-    "operarios": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$id": {
-        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('admin').val() == data.child('admin').val() && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
-      }
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
-    "notas": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$f": {
-        "$o": {
-          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-          ".validate": "newData.isString() && newData.val().length <= 200"
-        }
-      }
-    },
-    "cambios": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$f": {
-        "$o": {
-          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-          ".validate": "newData.isString() && newData.val().length <= 4"
-        }
-      }
-    },
-    "chat": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$m": {
-        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-        ".validate": "newData.hasChildren(['autor','texto','t']) && newData.child('autor').isString() && newData.child('texto').isString() && newData.child('texto').val().length >= 1 && newData.child('texto').val().length <= 500 && newData.child('t').isNumber()"
-      }
-    },
-    "ausencias": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$f": {
-        "$o": {
-          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{1,3}$/)"
-        }
-      }
-    },
-    "solicitudes": {
-      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
-      "$s": {
-        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
-        ".validate": "newData.hasChildren(['fecha','solicitante','estado']) && newData.child('fecha').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
-      }
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  }
+  ]
 }
