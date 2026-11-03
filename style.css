@@ -84,3 +84,4 @@ button{font-family:inherit}
 .chat-form{display:flex;gap:8px}
 .chat-form input{flex:1;margin-bottom:0}
 .btn-chat{background:var(--color-libre);color:#000;border:none;border-radius:8px;padding:0 16px;font-weight:700;cursor:pointer}
+.ayuda{color:#888;font-size:.85rem;margin:-6px 0 14px}
