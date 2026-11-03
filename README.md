@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34309872/README.md)
+[README.md](https://github.com/user-attachments/files/34310342/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -18,6 +18,7 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 - `festivos.js`: festivos del año. Hay que cargar la lista nueva cada año.
 - `app.js`: interfaz y Firebase.
 - `database.rules.json`: reglas de seguridad.
+- `manifest.json`, `icon-*.png`, `apple-touch-icon.png`: nombre e icono al añadir la web a la pantalla de inicio.
 
 ## Modelo de datos
 - `operarios/{id}`: nombre, ref (fecha), idx (posición en el ciclo), pinHash
