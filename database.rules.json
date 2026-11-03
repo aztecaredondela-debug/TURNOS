@@ -1,31 +1,57 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": false,
+    "miembros": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.isString() && newData.val() === root.child('codigo').val()"
+      }
+    },
     "operarios": {
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('admin').val() == data.child('admin').val() && (!newData.child('fijo').exists() || newData.child('fijo').val() == 'M' || newData.child('fijo').val() == 'T' || newData.child('fijo').val() == 'S') && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
+        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
+        ".validate": "newData.hasChildren(['nombre','pinHash','ref','idx']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 30 && newData.child('idx').isNumber() && newData.child('idx').val() >= 0 && newData.child('idx').val() < 70 && newData.child('admin').val() == data.child('admin').val() && newData.child('ref').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
       }
     },
     "notas": {
-      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().length <= 200" } }
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
+      "$f": {
+        "$o": {
+          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        }
+      }
     },
     "cambios": {
-      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().length <= 4" } }
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
+      "$f": {
+        "$o": {
+          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length <= 4"
+        }
+      }
     },
     "chat": {
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
       "$m": {
-        ".write": "auth != null",
+        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
         ".validate": "newData.hasChildren(['autor','texto','t']) && newData.child('autor').isString() && newData.child('texto').isString() && newData.child('texto').val().length >= 1 && newData.child('texto').val().length <= 500 && newData.child('t').isNumber()"
       }
     },
     "ausencias": {
-      "$f": { "$o": { ".write": "auth != null", ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{1,3}$/)" } }
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
+      "$f": {
+        "$o": {
+          ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{1,3}$/)"
+        }
+      }
     },
     "solicitudes": {
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
       "$s": {
-        ".write": "auth != null",
+        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
         ".validate": "newData.hasChildren(['fecha','solicitante','estado']) && newData.child('fecha').val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
       }
     }
