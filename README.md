@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34357181/README.md)
+[README.md](https://github.com/user-attachments/files/34367270/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
