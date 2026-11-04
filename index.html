@@ -70,6 +70,7 @@
       <button data-tab="sol">Solicitudes <span id="badge"></span></button>
       <button data-tab="aus">Ausencias</button>
       <button data-tab="eq" id="tabEq" hidden>Equipo</button>
+      <button data-tab="fest" id="tabFest" hidden>🎉 Festivos</button>
     </div>
     <div id="viewCal">
       <div class="cal-header">
@@ -78,6 +79,7 @@
         <button class="nav-btn" id="next" aria-label="Mes siguiente">❯</button>
       </div>
       <div class="grid" id="grid"></div>
+      <div class="fest-mes" id="festMes" hidden></div>
     </div>
     <div id="viewQuien" hidden>
       <div class="cal-header">
@@ -109,11 +111,21 @@
       <div id="listaAus"></div>
     </div>
     <div id="viewEq" hidden></div>
+    <div id="viewFest" hidden>
+      <label for="festAnio">Año</label>
+      <select id="festAnio"></select>
+      <label for="festFecha">Añadir un festivo</label>
+      <input type="date" id="festFecha">
+      <label for="festTexto">Texto (opcional)</label>
+      <input id="festTexto" maxlength="40" placeholder="F" autocomplete="off">
+      <button class="btn-sync" id="btnFest">Añadir festivo</button>
+      <div id="listaFest"></div>
+    </div>
   </div>
 </div></div>
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=11"></script>
+<script type="module" src="app.js?v=12"></script>
 </body>
 </html>
