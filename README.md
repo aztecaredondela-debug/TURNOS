@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34310342/README.md)
+[README.md](https://github.com/user-attachments/files/34356403/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -21,7 +21,7 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 - `manifest.json`, `icon-*.png`, `apple-touch-icon.png`: nombre e icono al añadir la web a la pantalla de inicio.
 
 ## Modelo de datos
-- `operarios/{id}`: nombre, ref (fecha), idx (posición en el ciclo), pinHash
+- `operarios/{id}`: nombre, grupo (`electromecanicos`, `electromedicina`, `oficios`; sin grupo = electromecánicos), tipo (turno; sin tipo = rotativo), ref (fecha), idx (posición en su ciclo), pinHash. Grupos y turnos se definen en `GRUPOS` y `TIPOS_TURNO` de `ciclo.js`. Los cambios de turno solo son posibles dentro del mismo grupo.
 - `notas/{fecha}/{id}`: texto
 - `cambios/{fecha}/{id}`: turno resultante tras un cambio (`LC` = libre por cambio)
 - `ausencias/{fecha}/{id}`: código del tipo de ausencia (`V` vacaciones, `B` baja, `LD` libre disposición, `FA` familiar, `MA` maternidad/paternidad, `OT` otros). Los tipos se definen en `TIPOS_AUS` de `ciclo.js`
