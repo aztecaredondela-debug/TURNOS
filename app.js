@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=11";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=11";
-import { FESTIVOS } from "./festivos.js?v=11";
+import { firebaseConfig } from "./firebase-config.js?v=12";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=12";
+import { FESTIVOS } from "./festivos.js?v=12";
 
-const VERSION = 11;
+const VERSION = 12;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -22,7 +22,7 @@ function h(tag, props = {}, ...kids) {
   return e;
 }
 
-let ops = {}, notas = {}, cambios = {}, sols = {}, ausencias = {};
+let ops = {}, notas = {}, cambios = {}, sols = {}, ausencias = {}, festivosDB = {};
 let me = localStorage.getItem("turnos_me");
 let view = new Date(), tab = "cal", modalFecha = null;
 
@@ -30,7 +30,9 @@ const nom = id => ops[id]?.nombre ?? "?";
 // Prioridad: ausencia > cambio de turno > ciclo
 const turnoEf = (id, f) => ausencias[f]?.[id] ?? cambios[f]?.[id] ?? turnoCiclo(ops[id], f);
 const etiq = t => TIPOS_AUS[t]?.etq ?? t;
-const festivo = f => FESTIVOS[f] ? (FESTIVOS[f] === "F" ? "Festivo" : "Festivo · " + FESTIVOS[f]) : null;
+// Festivos: los guardados en Firebase; mientras no haya ninguno, los de festivos.js (2026)
+const festEf = () => Object.keys(festivosDB).length ? festivosDB : FESTIVOS;
+const festivo = f => festEf()[f] ? (festEf()[f] === "F" ? "Festivo" : "Festivo · " + festEf()[f]) : null;
 const fmt = f => new Date(f + "T00:00").toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
 const claseTurno = t => ({ libre: "libre-shift", m: "m-shift", t: "t-shift", n: "n-shift", aus: "aus-shift" })[tipoTurno(t)];
 
@@ -103,7 +105,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat";
+  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat"; $("viewFest").hidden = tab !== "fest";
   if (tab === "chat") { marcarLeido(); renderChat(); $("chatTxt").focus(); }
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
@@ -126,11 +128,20 @@ function renderCal() {
   for (let d = 1; d <= new Date(a, m + 1, 0).getDate(); d++) {
     const f = iso(a, m, d), t = turnoEf(me, f);
     const hayNota = notas[f] && Object.keys(notas[f]).length;
-    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}${FESTIVOS[f] ? " festivo" : ""}`, onclick: () => abrirDia(f) },
+    const cell = h("button", { class: `day-cell ${claseTurno(t)}${f === hoy ? " today" : ""}${festEf()[f] ? " festivo" : ""}`, onclick: () => abrirDia(f) },
       h("span", {}, String(d)), h("b", {}, etiq(t)),
-      h("div", { class: "icons" }, (FESTIVOS[f] ? "🎉" : "") + (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
+      h("div", { class: "icons" }, (festEf()[f] ? "🎉" : "") + (hayNota ? "🔔" : "") + (abiertas.has(f) ? "🔄" : "") + (cambios[f]?.[me] && !ausencias[f]?.[me] ? "↔️" : "")));
     grid.append(cell);
   }
+  renderFestMes(a, m);
+}
+
+function renderFestMes(a, m) {
+  const cont = $("festMes"), pref = `${a}-${String(m + 1).padStart(2, "0")}-`;
+  const del = Object.entries(festEf()).filter(([f]) => f.startsWith(pref)).sort();
+  cont.hidden = !del.length; cont.innerHTML = "";
+  if (!del.length) return;
+  cont.append(h("b", {}, "🎉 Festivos de este mes: "), del.map(([f, t]) => fmt(f) + (t !== "F" ? ` (${t})` : "")).join(" · "));
 }
 
 /* ---------- Modal del día ---------- */
@@ -298,6 +309,7 @@ function renderEq() {
   $("tabEq").hidden = !esAdmin;
   const cont = $("viewEq"); cont.innerHTML = "";
   if (!esAdmin) { if (tab === "eq") document.querySelector('[data-tab="cal"]').click(); return; }
+  cont.append(h("button", { class: "btn-sync", style: "margin-bottom:14px", onclick: () => editarOp(null) }, "➕ Añadir compañero"));
   cont.append(h("label", {}, `Equipo (${Object.keys(ops).length})`));
   Object.entries(ops).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre, "es")).forEach(([id, o]) =>
     cont.append(h("div", { class: "sol eq" }, h("div", {}, h("b", {}, o.nombre + (o.admin ? " ★" : "")), h("small", {}, `${GRUPOS[grupoDe(o)].nombre} · ${TIPOS_TURNO[o.tipo]?.nombre ?? "Rotativo"}`)),
@@ -306,8 +318,10 @@ function renderEq() {
         id === me ? null : h("button", { class: "bad", onclick: () => borrarOp(id), "aria-label": "Eliminar " + o.nombre }, "✕")))));
 }
 
-function editarOp(id) {
-  const o = ops[id], body = $("modalBody"); body.innerHTML = "";
+function editarOp(id) { // id === null: alta de un compañero nuevo
+  const nuevo = id === null;
+  const o = nuevo ? { nombre: "", grupo: "electromecanicos", tipo: "rotativo", ref: hoyIso(), idx: 0 } : ops[id];
+  const body = $("modalBody"); body.innerHTML = "";
   const nombre = h("input", { value: o.nombre, maxlength: "30" });
   const grupo = h("select"), tipo = h("select"), sem = h("select");
   for (const [k, v] of Object.entries(GRUPOS)) grupo.add(new Option(v.nombre, k));
@@ -336,19 +350,25 @@ function editarOp(id) {
     refrescar();
   };
   grupo.onchange = cambiarGrupo; tipo.onchange = refrescar; cambiarGrupo();
-  const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
-  body.append(h("h3", {}, "Editar compañero"),
+  const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: nuevo ? "4 cifras" : "Vacío = no cambiarlo" });
+  body.append(h("h3", {}, nuevo ? "Añadir compañero" : "Editar compañero"),
     h("label", {}, "Nombre"), nombre, h("label", {}, "Grupo"), grupo, h("label", {}, "Turno"), tipo, areaRot, areaSem,
-    h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, nuevo ? "PIN inicial (se lo dices tú)" : "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
         if (!nombre.value.trim()) return alert("Falta el nombre.");
-        if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
+        if ((nuevo || pin.value) && !/^\d{4}$/.test(pin.value)) return alert(nuevo ? "Pon un PIN de 4 cifras." : "El PIN son 4 cifras.");
+        if (nuevo && Object.values(ops).some(x => x.nombre.toLowerCase() === nombre.value.trim().toLowerCase()) && !confirm("Ya hay alguien con ese nombre. ¿Crear de todos modos?")) return;
         const datos = { nombre: nombre.value.trim(), grupo: grupo.value, tipo: tipo.value };
         if (TIPOS_TURNO[tipo.value]?.semanas) { datos.ref = lunesDe(hoyIso()); datos.idx = parseInt(sem.value); }
         else { if (!fr.value) return alert("Falta la fecha de referencia."); datos.ref = fr.value; datos.idx = parseInt(sel.value); }
-        if (pin.value) datos.pinHash = await hashPin(pin.value, id);
-        await update(ref(db, "operarios/" + id), datos);
+        if (nuevo) {
+          const nid = push(ref(db, "operarios")).key;
+          await set(ref(db, "operarios/" + nid), { ...datos, pinHash: await hashPin(pin.value, nid) });
+        } else {
+          if (pin.value) datos.pinHash = await hashPin(pin.value, id);
+          await update(ref(db, "operarios/" + id), datos);
+        }
         cerrar();
       } }, "Guardar"),
       h("button", { class: "sec", onclick: cerrar }, "Cancelar")));
@@ -391,7 +411,7 @@ function gruposDelDia(f) {
 function renderQuien() {
   if (!me || !ops[me]) return;
   const f = quienFecha, hoy = hoyIso();
-  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + (FESTIVOS[f] ? " 🎉" : "");
+  $("qLabel").textContent = (f === hoy ? "Hoy · " : "") + fmt(f) + (festEf()[f] ? " 🎉" : "");
   $("qHoy").hidden = f === hoy;
   if ($("qFecha").value !== f) $("qFecha").value = f;
 
@@ -411,7 +431,7 @@ function renderQuien() {
   for (let i = 1; i <= 7; i++) {
     const d = sumaDias(f, i), gd = gruposDelDia(d);
     prox.append(h("button", { class: "prox", onclick: () => cambiarQuien(d) },
-      h("span", {}, fmt(d) + (FESTIVOS[d] ? " 🎉" : "")),
+      h("span", {}, fmt(d) + (festEf()[d] ? " 🎉" : "")),
       h("span", {}, h("b", { class: "c-m" }, `M ${gd.m.length}`), " ", h("b", { class: "c-t" }, `T ${gd.t.length}`), " ", h("b", { class: "c-n" }, `N ${gd.n.length}`), gd.aus.length ? ` · Aus ${gd.aus.length}` : "")));
   }
 }
@@ -464,8 +484,47 @@ function renderChat() {
   if (abajo) cont.scrollTop = cont.scrollHeight;
 }
 
+/* ---------- Festivos (solo administrador) ---------- */
+let festAnio = new Date().getFullYear();
+for (let y = festAnio - 1; y <= festAnio + 2; y++) $("festAnio").add(new Option(y, y));
+$("festAnio").value = festAnio;
+$("festFecha").value = festAnio + "-01-01";
+$("festAnio").onchange = () => { festAnio = parseInt($("festAnio").value); renderFest(); };
+
+// Si todavía no hay festivos guardados, se guardan primero los de festivos.js para no perderlos al tocar la lista
+const baseFest = () => { const up = {}; if (!Object.keys(festivosDB).length) for (const [k, v] of Object.entries(FESTIVOS)) up["festivos/" + k] = v; return up; };
+
+$("btnFest").onclick = async () => {
+  const f = $("festFecha").value;
+  if (!f) return alert("Elige la fecha del festivo.");
+  const up = baseFest(); up["festivos/" + f] = ($("festTexto").value.trim() || "F").slice(0, 40);
+  await update(ref(db), up);
+  $("festTexto").value = "";
+  festAnio = parseInt(f.slice(0, 4));
+  if (![...$("festAnio").options].some(o => o.value === String(festAnio))) $("festAnio").add(new Option(festAnio, festAnio));
+  $("festAnio").value = festAnio;
+  renderFest();
+};
+
+function renderFest() {
+  const esAdmin = !!ops[me]?.admin;
+  $("tabFest").hidden = !esAdmin;
+  if (!esAdmin) { if (tab === "fest") document.querySelector('[data-tab="cal"]').click(); return; }
+  const lista = $("listaFest"); lista.innerHTML = "";
+  const del = Object.entries(festEf()).filter(([f]) => f.startsWith(festAnio + "-")).sort();
+  lista.append(h("label", { style: "margin-top:18px" }, `Festivos de ${festAnio} (${del.length})`));
+  if (!del.length) { lista.append(h("div", { class: "vacio" }, `Todavía no hay festivos en ${festAnio}. Añade el primero arriba.`)); return; }
+  del.forEach(([f, t]) => lista.append(h("div", { class: "sol eq" },
+    h("div", {}, h("b", {}, fmt(f)), h("small", {}, t === "F" ? "Festivo" : t)),
+    h("div", { class: "acc" }, h("button", { class: "bad", "aria-label": "Quitar festivo", onclick: async () => {
+      if (!confirm(`¿Quitar el festivo del ${fmt(f)}?`)) return;
+      const up = baseFest(); up["festivos/" + f] = null;
+      await update(ref(db), up);
+    } }, "✕")))));
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); renderFest(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
@@ -483,6 +542,7 @@ function iniciar() {
   onValue(ref(db, "notas"), s => { notas = s.val() || {}; render(); }, errLectura("notas"));
   onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); }, errLectura("cambios"));
   onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); }, errLectura("ausencias"));
+  onValue(ref(db, "festivos"), s => { festivosDB = s.val() || {}; render(); }, errLectura("festivos"));
   onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); }, errLectura("solicitudes"));
   onValue(query(ref(db, "chat"), limitToLast(100)), s => { chat = s.val() || {}; render(); }, errLectura("chat"));
 }
