@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=12";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=12";
-import { FESTIVOS } from "./festivos.js?v=12";
+import { firebaseConfig } from "./firebase-config.js?v=13";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=13";
+import { FESTIVOS } from "./festivos.js?v=13";
 
-const VERSION = 12;
+const VERSION = 13;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -279,7 +279,48 @@ $("btnAus").onclick = async () => {
   await update(ref(db), up);
 };
 
+/* ---------- Contador de días por tipo de ausencia ---------- */
+let ausAnio = new Date().getFullYear();
+for (let y = ausAnio - 1; y <= ausAnio + 1; y++) $("ausAnio").add(new Option(y, y));
+$("ausAnio").value = ausAnio;
+$("ausAnio").onchange = () => { ausAnio = parseInt($("ausAnio").value); renderResumen(); };
+
+// Para cada tipo: días registrados en el año y cuántos eran días en los que le tocaba trabajar
+function resumenDe(id, anio) {
+  const r = {};
+  for (const [f, porOp] of Object.entries(ausencias)) {
+    const t = porOp[id];
+    if (!t || !f.startsWith(anio + "-")) continue;
+    if (!r[t]) r[t] = { dias: 0, trabajo: 0 };
+    r[t].dias++;
+    if (trabaja(cambios[f]?.[id] ?? turnoCiclo(ops[id], f))) r[t].trabajo++;
+  }
+  return r;
+}
+const textoDias = n => `${n} día${n === 1 ? "" : "s"}`;
+
+function renderResumen() {
+  if (!me || !ops[me]) return;
+  const mio = $("resumenAus"); mio.innerHTML = "";
+  const r = resumenDe(me, ausAnio), tipos = Object.keys(r).sort();
+  if (!tipos.length) mio.append(h("div", { class: "vacio" }, `Aún no tienes ausencias registradas en ${ausAnio}.`));
+  tipos.forEach(t => mio.append(h("div", { class: "sol eq" },
+    h("div", {}, h("b", {}, `${TIPOS_AUS[t]?.icono ?? "📋"} ${TIPOS_AUS[t]?.nombre ?? t}`),
+      h("small", {}, `De ellos, ${r[t].trabajo} en días que te tocaba trabajar`)),
+    h("b", {}, textoDias(r[t].dias)))));
+
+  const eq = $("resumenEquipo"); eq.innerHTML = "";
+  if (!ops[me].admin) return; // el resumen de todo el equipo solo lo ve el administrador
+  eq.append(h("label", { style: "margin-top:18px" }, `Resumen del equipo · ${ausAnio}`));
+  const filas = Object.keys(ops).sort((a, b) => nom(a).localeCompare(nom(b), "es"))
+    .map(id => [id, resumenDe(id, ausAnio)]).filter(([, x]) => Object.keys(x).length);
+  if (!filas.length) { eq.append(h("div", { class: "vacio" }, `Nadie tiene ausencias registradas en ${ausAnio}.`)); return; }
+  filas.forEach(([id, x]) => eq.append(h("div", { class: "sol" }, h("b", {}, nom(id)),
+    h("small", {}, Object.keys(x).sort().map(t => `${TIPOS_AUS[t]?.nombre ?? t}: ${x[t].dias}`).join(" · ")))));
+}
+
 function renderAus() {
+  renderResumen();
   const cont = $("listaAus"); cont.innerHTML = "";
   const hoy = hoyIso(), items = [];
   for (const [f, porOp] of Object.entries(ausencias)) for (const [id, t] of Object.entries(porOp)) if (ops[id]) items.push({ f, id, t });
