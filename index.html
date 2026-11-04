@@ -103,12 +103,16 @@
     </div>
     <div id="viewSol" hidden></div>
     <div id="viewAus" hidden>
-      <label for="ausTipo">Registrar mi ausencia</label>
+      <label for="ausAnio">Mis días registrados · año</label>
+      <select id="ausAnio"></select>
+      <div id="resumenAus"></div>
+      <label for="ausTipo" style="margin-top:18px">Registrar mi ausencia</label>
       <select id="ausTipo"></select>
       <label for="ausDesde">Desde</label><input type="date" id="ausDesde">
       <label for="ausHasta">Hasta</label><input type="date" id="ausHasta">
       <button class="btn-sync" id="btnAus">Registrar</button>
       <div id="listaAus"></div>
+      <div id="resumenEquipo"></div>
     </div>
     <div id="viewEq" hidden></div>
     <div id="viewFest" hidden>
@@ -126,6 +130,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=12"></script>
+<script type="module" src="app.js?v=13"></script>
 </body>
 </html>
