@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=13";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=13";
-import { FESTIVOS } from "./festivos.js?v=13";
+import { firebaseConfig } from "./firebase-config.js?v=14";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=14";
+import { FESTIVOS } from "./festivos.js?v=14";
 
-const VERSION = 13;
+const VERSION = 14;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -157,7 +157,7 @@ function renderModal() {
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
   Object.keys(ops).sort((x, y) => nom(x).localeCompare(nom(y), "es")).forEach(id => {
     const t = turnoEf(id, f), k = tipoTurno(t);
-    g[k].push(k === "aus" ? `${nom(id)} (${TIPOS_AUS[t].nombre.toLowerCase()})` : nom(id) + (cambios[f]?.[id] ? " ↔️" : ""));
+    g[k].push(k === "aus" ? (id === me ? `${nom(id)} (${TIPOS_AUS[t].nombre.toLowerCase()})` : nom(id))   : nom(id) + (cambios[f]?.[id] ? " ↔️" : ""));
   });
   [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]].forEach(([k, titulo]) =>
     body.append(h("div", { class: `grupo ${k}` }, h("b", {}, titulo), g[k].length ? g[k].join(", ") : "—")));
@@ -309,14 +309,6 @@ function renderResumen() {
       h("small", {}, `De ellos, ${r[t].trabajo} en días que te tocaba trabajar`)),
     h("b", {}, textoDias(r[t].dias)))));
 
-  const eq = $("resumenEquipo"); eq.innerHTML = "";
-  if (!ops[me].admin) return; // el resumen de todo el equipo solo lo ve el administrador
-  eq.append(h("label", { style: "margin-top:18px" }, `Resumen del equipo · ${ausAnio}`));
-  const filas = Object.keys(ops).sort((a, b) => nom(a).localeCompare(nom(b), "es"))
-    .map(id => [id, resumenDe(id, ausAnio)]).filter(([, x]) => Object.keys(x).length);
-  if (!filas.length) { eq.append(h("div", { class: "vacio" }, `Nadie tiene ausencias registradas en ${ausAnio}.`)); return; }
-  filas.forEach(([id, x]) => eq.append(h("div", { class: "sol" }, h("b", {}, nom(id)),
-    h("small", {}, Object.keys(x).sort().map(t => `${TIPOS_AUS[t]?.nombre ?? t}: ${x[t].dias}`).join(" · ")))));
 }
 
 function renderAus() {
@@ -324,18 +316,18 @@ function renderAus() {
   const cont = $("listaAus"); cont.innerHTML = "";
   const hoy = hoyIso(), items = [];
   for (const [f, porOp] of Object.entries(ausencias)) for (const [id, t] of Object.entries(porOp)) if (ops[id]) items.push({ f, id, t });
-  items.sort((a, b) => a.id.localeCompare(b.id) || a.t.localeCompare(b.t) || a.f.localeCompare(b.f));
+  items.sort((a, b) => a.id.localeCompare(b.id) || (a.id === me ? a.t.localeCompare(b.t) : 0) || a.f.localeCompare(b.f));
   const rangos = [];
   for (const it of items) { // une días seguidos de la misma persona y tipo en un solo tramo
     const u = rangos[rangos.length - 1];
-    if (u && u.id === it.id && u.t === it.t && dayNum(it.f) - dayNum(u.hasta) === 1) { u.hasta = it.f; u.dias.push(it.f); }
+    if (u && u.id === it.id && (u.t === it.t || it.id !== me) && dayNum(it.f) - dayNum(u.hasta) === 1) { u.hasta = it.f; u.dias.push(it.f); }
     else rangos.push({ id: it.id, t: it.t, desde: it.f, hasta: it.f, dias: [it.f] });
   }
   const vivos = rangos.filter(r => r.hasta >= hoy).sort((a, b) => a.desde.localeCompare(b.desde));
   if (!vivos.length) { cont.append(h("div", { class: "vacio" }, "Nadie tiene ausencias registradas.")); return; }
   cont.append(h("label", {}, "Ausencias del equipo"));
   vivos.forEach(r => cont.append(h("div", { class: "sol" + (r.id === me ? " mia" : "") },
-    h("b", {}, `${TIPOS_AUS[r.t]?.icono ?? "📋"} ${nom(r.id)}`), ` · ${(TIPOS_AUS[r.t]?.nombre ?? "ausencia").toLowerCase()}`,
+    h("b", {}, `${r.id === me ? (TIPOS_AUS[r.t]?.icono ?? "📋") : "📅"} ${nom(r.id)}`), ` · ${r.id === me ? (TIPOS_AUS[r.t]?.nombre ?? "ausencia").toLowerCase() : "ausente"}`,
     h("small", {}, `${fmt(r.desde)} al ${fmt(r.hasta)}`),
     r.id === me || ops[me]?.admin ? h("div", { class: "row" }, h("button", { class: "bad", onclick: () => {
       if (!confirm(`¿Quitar esta ausencia${r.id === me ? "" : " de " + nom(r.id)}?`)) return;
@@ -463,7 +455,7 @@ function renderQuien() {
     const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
     if (!g[k].length) bloque.append(h("span", { class: "vacio-q" }, "—"));
     g[k].forEach(({ id, t }) => bloque.append(h("span", { class: "chip" + (id === me ? " yo" : "") },
-      nom(id), " ", h("small", {}, etiq(t)), cambios[f]?.[id] && k !== "aus" ? " ↔️" : "")));
+      nom(id), " ", (k === "aus" && id !== me) ? null : h("small", {}, etiq(t)), cambios[f]?.[id] && k !== "aus" ? " ↔️" : "")));
     lista.append(bloque);
   }
   lista.append(h("div", { class: "pie-q" }, `${g.m.length + g.t.length + g.n.length + g.libre.length + g.aus.length} compañeros registrados` + (quienGrupo ? ` en ${GRUPOS[quienGrupo].nombre}` : "")));
