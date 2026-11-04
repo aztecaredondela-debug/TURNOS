@@ -39,10 +39,21 @@
     <div id="nuevoArea" hidden>
       <label for="nuevoNombre">Tu nombre</label>
       <input id="nuevoNombre" maxlength="30" autocomplete="off">
-      <label for="fechaBase">Fecha de referencia</label>
-      <input type="date" id="fechaBase">
-      <label for="turnoBase">Tu turno ese día</label>
-      <select id="turnoBase"></select>
+      <label for="grupoSel">Tu grupo</label>
+      <select id="grupoSel"></select>
+      <label for="tipoTurno">Tu turno</label>
+      <select id="tipoTurno"></select>
+      <div id="rotArea">
+        <label for="fechaBase">Fecha de referencia</label>
+        <input type="date" id="fechaBase">
+        <label for="turnoBase">Tu turno ese día</label>
+        <select id="turnoBase"></select>
+      </div>
+      <div id="mtArea" hidden>
+        <label for="mtSemana">Esta semana trabajo de</label>
+        <select id="mtSemana"></select>
+        <p class="ayuda">Si hoy es fin de semana, elige la semana que acaba de terminar.</p>
+      </div>
     </div>
     <label for="pin">PIN (4 cifras)</label>
     <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
@@ -75,6 +86,7 @@
         <button class="nav-btn" id="qNext" aria-label="Día siguiente">❯</button>
       </div>
       <input type="date" id="qFecha" aria-label="Ir a una fecha">
+      <select id="qGrupo" aria-label="Filtrar por grupo"></select>
       <button class="btn-sec" id="qHoy" hidden>Volver a hoy</button>
       <div id="listaQuien"></div>
       <label>Días siguientes</label>
@@ -102,6 +114,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=9"></script>
+<script type="module" src="app.js?v=11"></script>
 </body>
 </html>
