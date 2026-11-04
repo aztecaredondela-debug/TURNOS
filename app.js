@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=9";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias } from "./ciclo.js?v=9";
-import { FESTIVOS } from "./festivos.js?v=9";
+import { firebaseConfig } from "./firebase-config.js?v=11";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=11";
+import { FESTIVOS } from "./festivos.js?v=11";
 
-const VERSION = 9;
+const VERSION = 11;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -44,6 +44,17 @@ const NUEVO = "__nuevo";
 const dNoms = DIAS;
 for (let i = 0; i < CICLO.length; i++) $("turnoBase").add(new Option(`S${Math.floor(i / 7) + 1} - ${dNoms[i % 7]} (${CICLO[i]})`, i));
 $("fechaBase").value = hoyIso();
+function llenarTipos(sel, grupo) { sel.innerHTML = ""; for (const [k, v] of tiposDe(grupo)) sel.add(new Option(v.nombre, k)); }
+function llenarSemanas(sel, tipo) { sel.innerHTML = ""; (TIPOS_TURNO[tipo]?.semanas ?? []).forEach((txt, w) => sel.add(new Option(txt, w * 7))); }
+function actualizarAlta() {
+  const t = $("tipoTurno").value, semanal = !!TIPOS_TURNO[t]?.semanas;
+  $("rotArea").hidden = semanal; $("mtArea").hidden = !semanal;
+  if (semanal) llenarSemanas($("mtSemana"), t);
+}
+for (const [k, v] of Object.entries(GRUPOS)) $("grupoSel").add(new Option(v.nombre, k));
+$("grupoSel").onchange = () => { llenarTipos($("tipoTurno"), $("grupoSel").value); actualizarAlta(); };
+$("tipoTurno").onchange = actualizarAlta;
+$("grupoSel").onchange();
 
 function pintarSelectorOperarios() {
   const sel = $("selOp"), actual = sel.value;
@@ -65,11 +76,13 @@ $("btnEntrar").onclick = async () => {
     if (id === NUEVO) {
       const nombre = $("nuevoNombre").value.trim();
       if (!nombre) { msg.textContent = "Escribe tu nombre."; return; }
-      if (!$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
+      const grupo = $("grupoSel").value, tipo = $("tipoTurno").value, semanal = !!TIPOS_TURNO[tipo]?.semanas;
+      if (!semanal && !$("fechaBase").value) { msg.textContent = "Indica la fecha de referencia."; return; }
       id = push(ref(db, "operarios")).key;
-      await set(ref(db, "operarios/" + id), {
-        nombre, ref: $("fechaBase").value, idx: parseInt($("turnoBase").value), pinHash: await hashPin(pin, id)
-      });
+      const turno = semanal
+        ? { ref: lunesDe(hoyIso()), idx: parseInt($("mtSemana").value) }
+        : { ref: $("fechaBase").value, idx: parseInt($("turnoBase").value) };
+      await set(ref(db, "operarios/" + id), { nombre, grupo, tipo, ...turno, pinHash: await hashPin(pin, id) });
     } else if (ops[id].pinHash !== await hashPin(pin, id)) {
       msg.textContent = "PIN incorrecto."; return;
     }
@@ -99,7 +112,7 @@ $("next").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() + 1);
 /* ---------- Calendario ---------- */
 function solsAbiertas() {
   const hoy = hoyIso();
-  return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy && ops[s.solicitante]).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
+  return Object.entries(sols).filter(([, s]) => s.estado === "abierta" && s.fecha >= hoy && ops[s.solicitante] && ops[me] && grupoDe(ops[s.solicitante]) === grupoDe(ops[me])).sort((a, b) => a[1].fecha.localeCompare(b[1].fecha));
 }
 
 function renderCal() {
@@ -206,6 +219,7 @@ function renderSol() {
 }
 
 async function ofrecer(sid, s, dev) {
+  if (grupoDe(ops[me]) !== grupoDe(ops[s.solicitante])) return alert("Solo puedes cubrir a compañeros de tu grupo.");
   if (dev) {
     if (!trabaja(turnoEf(me, dev))) return alert("Ese día no trabajas: no hay nada que devolver.");
     if (!esLibre(turnoEf(s.solicitante, dev))) return alert(`${nom(s.solicitante)} trabaja ese día y no puede cubrirte.`);
@@ -216,6 +230,7 @@ async function ofrecer(sid, s, dev) {
 async function aceptar(sid, oid) {
   const s = sols[sid], dev = s.ofertas?.[oid]?.dev, D = s.fecha;
   if (!ops[oid]) return alert("Ese compañero ya no existe.");
+  if (grupoDe(ops[oid]) !== grupoDe(ops[me])) return alert("Solo se puede cambiar con compañeros del mismo grupo.");
   // Se revalida con el estado actual por si los turnos cambiaron desde la oferta
   if (!esLibre(turnoEf(oid, D))) return alert(`${nom(oid)} ya no libra ese día.`);
   if (dev && (!trabaja(turnoEf(oid, dev)) || !esLibre(turnoEf(me, dev)))) return alert("La devolución ya no es válida.");
@@ -285,7 +300,7 @@ function renderEq() {
   if (!esAdmin) { if (tab === "eq") document.querySelector('[data-tab="cal"]').click(); return; }
   cont.append(h("label", {}, `Equipo (${Object.keys(ops).length})`));
   Object.entries(ops).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre, "es")).forEach(([id, o]) =>
-    cont.append(h("div", { class: "sol eq" }, h("b", {}, o.nombre + (o.admin ? " ★" : "")),
+    cont.append(h("div", { class: "sol eq" }, h("div", {}, h("b", {}, o.nombre + (o.admin ? " ★" : "")), h("small", {}, `${GRUPOS[grupoDe(o)].nombre} · ${TIPOS_TURNO[o.tipo]?.nombre ?? "Rotativo"}`)),
       h("div", { class: "acc" },
         h("button", { class: "sec", onclick: () => editarOp(id), "aria-label": "Editar " + o.nombre }, "✏️"),
         id === me ? null : h("button", { class: "bad", onclick: () => borrarOp(id), "aria-label": "Eliminar " + o.nombre }, "✕")))));
@@ -294,19 +309,44 @@ function renderEq() {
 function editarOp(id) {
   const o = ops[id], body = $("modalBody"); body.innerHTML = "";
   const nombre = h("input", { value: o.nombre, maxlength: "30" });
+  const grupo = h("select"), tipo = h("select"), sem = h("select");
+  for (const [k, v] of Object.entries(GRUPOS)) grupo.add(new Option(v.nombre, k));
+  grupo.value = grupoDe(o);
+  const tipoActual = TIPOS_TURNO[o.tipo] ? o.tipo : "rotativo";
   const fr = h("input", { type: "date", value: o.ref });
   const sel = h("select");
   for (let i = 0; i < CICLO.length; i++) sel.add(new Option(`S${Math.floor(i / 7) + 1} - ${DIAS[i % 7]} (${CICLO[i]})`, i));
-  sel.value = o.idx;
+  sel.value = tipoActual === "rotativo" ? o.idx : 0;
+  const areaRot = h("div", {}, h("label", {}, "Fecha de referencia"), fr, h("label", {}, "Su turno ese día"), sel);
+  const areaSem = h("div", {}, h("label", {}, "Esta semana trabaja de"), sem);
+  const refrescar = () => {
+    const t = tipo.value, semanal = !!TIPOS_TURNO[t]?.semanas;
+    areaRot.hidden = semanal; areaSem.hidden = !semanal;
+    if (!semanal) return;
+    llenarSemanas(sem, t);
+    if (t === tipoActual) { // semana en la que está ahora, según su ciclo actual
+      const len = cicloDe(o).length;
+      const pos = (((o.idx + Math.round(dayNum(lunesDe(hoyIso())) - dayNum(o.ref))) % len) + len) % len;
+      sem.value = String(Math.floor(pos / 7) * 7);
+    }
+  };
+  const cambiarGrupo = () => {
+    llenarTipos(tipo, grupo.value);
+    tipo.value = tiposDe(grupo.value).some(([k]) => k === tipoActual) ? tipoActual : tiposDe(grupo.value)[0][0];
+    refrescar();
+  };
+  grupo.onchange = cambiarGrupo; tipo.onchange = refrescar; cambiarGrupo();
   const pin = h("input", { type: "password", inputmode: "numeric", maxlength: "4", placeholder: "Vacío = no cambiarlo" });
   body.append(h("h3", {}, "Editar compañero"),
-    h("label", {}, "Nombre"), nombre, h("label", {}, "Fecha de referencia"), fr,
-    h("label", {}, "Su turno ese día"), sel, h("label", {}, "Nuevo PIN (opcional)"), pin,
+    h("label", {}, "Nombre"), nombre, h("label", {}, "Grupo"), grupo, h("label", {}, "Turno"), tipo, areaRot, areaSem,
+    h("label", {}, "Nuevo PIN (opcional)"), pin,
     h("div", { class: "row" },
       h("button", { class: "ok", onclick: async () => {
-        if (!nombre.value.trim() || !fr.value) return alert("Faltan el nombre o la fecha.");
+        if (!nombre.value.trim()) return alert("Falta el nombre.");
         if (pin.value && !/^\d{4}$/.test(pin.value)) return alert("El PIN son 4 cifras.");
-        const datos = { nombre: nombre.value.trim(), ref: fr.value, idx: parseInt(sel.value) };
+        const datos = { nombre: nombre.value.trim(), grupo: grupo.value, tipo: tipo.value };
+        if (TIPOS_TURNO[tipo.value]?.semanas) { datos.ref = lunesDe(hoyIso()); datos.idx = parseInt(sem.value); }
+        else { if (!fr.value) return alert("Falta la fecha de referencia."); datos.ref = fr.value; datos.idx = parseInt(sel.value); }
         if (pin.value) datos.pinHash = await hashPin(pin.value, id);
         await update(ref(db, "operarios/" + id), datos);
         cerrar();
@@ -330,16 +370,20 @@ async function borrarOp(id) {
 
 /* ---------- Pestaña "Quién": quién trabaja cada día ---------- */
 let quienFecha = hoyIso();
-const GRUPOS = [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]];
+let quienGrupo = "";
+const BLOQUES = [["m", "Mañana"], ["t", "Tarde"], ["n", "Noche"], ["libre", "Libres"], ["aus", "Ausentes"]];
 const cambiarQuien = f => { quienFecha = f; renderQuien(); };
 $("qPrev").onclick = () => cambiarQuien(sumaDias(quienFecha, -1));
 $("qNext").onclick = () => cambiarQuien(sumaDias(quienFecha, 1));
 $("qHoy").onclick = () => cambiarQuien(hoyIso());
 $("qFecha").onchange = e => { if (e.target.value) cambiarQuien(e.target.value); };
+$("qGrupo").add(new Option("Todos los grupos", ""));
+for (const [k, v] of Object.entries(GRUPOS)) $("qGrupo").add(new Option(v.nombre, k));
+$("qGrupo").onchange = () => { quienGrupo = $("qGrupo").value; renderQuien(); };
 
 function gruposDelDia(f) {
   const g = { m: [], t: [], n: [], libre: [], aus: [] };
-  for (const id of Object.keys(ops)) { const t = turnoEf(id, f); g[tipoTurno(t)].push({ id, t }); }
+  for (const id of Object.keys(ops).filter(i => !quienGrupo || grupoDe(ops[i]) === quienGrupo)) { const t = turnoEf(id, f); g[tipoTurno(t)].push({ id, t }); }
   for (const k in g) g[k].sort((a, b) => nom(a.id).localeCompare(nom(b.id), "es"));
   return g;
 }
@@ -354,14 +398,14 @@ function renderQuien() {
   const lista = $("listaQuien"); lista.innerHTML = "";
   if (festivo(f)) lista.append(h("div", { class: "festivo-linea" }, "🎉 " + festivo(f)));
   const g = gruposDelDia(f);
-  for (const [k, titulo] of GRUPOS) {
+  for (const [k, titulo] of BLOQUES) {
     const bloque = h("div", { class: `grupo-q ${k}` }, h("div", { class: "tit" }, `${titulo} (${g[k].length})`));
     if (!g[k].length) bloque.append(h("span", { class: "vacio-q" }, "—"));
     g[k].forEach(({ id, t }) => bloque.append(h("span", { class: "chip" + (id === me ? " yo" : "") },
       nom(id), " ", h("small", {}, etiq(t)), cambios[f]?.[id] && k !== "aus" ? " ↔️" : "")));
     lista.append(bloque);
   }
-  lista.append(h("div", { class: "pie-q" }, `${Object.keys(ops).length} compañeros registrados`));
+  lista.append(h("div", { class: "pie-q" }, `${g.m.length + g.t.length + g.n.length + g.libre.length + g.aus.length} compañeros registrados` + (quienGrupo ? ` en ${GRUPOS[quienGrupo].nombre}` : "")));
 
   const prox = $("proxQuien"); prox.innerHTML = "";
   for (let i = 1; i <= 7; i++) {
