@@ -1,4 +1,3 @@
-
 // Lógica pura del ciclo de turnos (sin interfaz ni Firebase).
 export const CICLO = ["N30","N30","N30","N30","DS","DS","DS","M","DF","DS","DS","N30","N30","N30","DS","DS","M","M","M30","M30","M30","N25","N25","N25","N25","DS","DS","DS","M25","M25","DS","DS","DF","M25","M25","T30","T30","T30","DS","N25","N25","N25","DS","DS","T25","T25","T25","DS","T25","T25","T25","DS","M25","M25","DF","DS","M30","M30","M30","T30","T","T25","DS","DS","DF","M25","M30","T30","T30","T30"];
 export const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
