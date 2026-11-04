@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/34370121/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -40,6 +41,9 @@ Nadie puede leer ni escribir datos si no ha introducido el código del equipo, q
 - Cada móvil lo escribe una sola vez.
 - Si alguien deja el equipo: en la consola, borra el nodo `miembros` y cambia el valor de `codigo`. Todos tendrán que escribir el código nuevo.
 - Usa un código largo (12 caracteres o más) con letras y números; no solo cifras.
+
+## Privacidad de las ausencias
+Cada persona ve el motivo y el contador de días solo de sus propias ausencias; los demás ven únicamente «ausente». Es una restricción de la pantalla, no de la base de datos: alguien con conocimientos técnicos que leyera los datos en bruto podría ver los motivos.
 
 ## Limitación conocida
 El PIN evita entrar por error con el nombre de otro compañero, pero no es seguridad real: el hash es legible por quien tenga acceso a la base de datos. Si necesitáis protección fuerte, hay que pasar a correo/contraseña con Firebase Auth.
