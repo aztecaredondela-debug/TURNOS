@@ -61,6 +61,13 @@
         ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
         ".validate": "$f.matches(/^\\d{4}-\\d{2}-\\d{2}$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
       }
+    },
+    "cursos": {
+      ".read": "auth != null && root.child('miembros').child(auth.uid).exists()",
+      "$c": {
+        ".write": "auth != null && root.child('miembros').child(auth.uid).exists()",
+        ".validate": "newData.hasChildren(['nombre','texto']) && newData.child('nombre').isString() && newData.child('nombre').val().length >= 1 && newData.child('nombre').val().length <= 80 && newData.child('texto').isString() && newData.child('texto').val().length <= 30000"
+      }
     }
   }
 }
