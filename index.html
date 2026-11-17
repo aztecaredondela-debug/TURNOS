@@ -69,6 +69,7 @@
       <button data-tab="chat">💬 Chat <span id="badgeChat"></span></button>
       <button data-tab="sol">Solicitudes <span id="badge"></span></button>
       <button data-tab="aus">Ausencias</button>
+      <button data-tab="cursos">📚 Cursos</button>
       <button data-tab="eq" id="tabEq" hidden>Equipo</button>
       <button data-tab="fest" id="tabFest" hidden>🎉 Festivos</button>
     </div>
@@ -113,6 +114,10 @@
       <button class="btn-sync" id="btnAus">Registrar</button>
       <div id="listaAus"></div>
     </div>
+    <div id="viewCursos" hidden>
+      <input id="cursoBuscar" placeholder="Buscar en los cursos..." autocomplete="off" aria-label="Buscar en los cursos">
+      <div id="listaCursos"></div>
+    </div>
     <div id="viewEq" hidden></div>
     <div id="viewFest" hidden>
       <label for="festAnio">Año</label>
@@ -129,6 +134,6 @@
 <div id="ver"></div>
 
 <div id="modal" class="modal" hidden><div class="modal-body" id="modalBody"></div></div>
-<script type="module" src="app.js?v=14"></script>
+<script type="module" src="app.js?v=15"></script>
 </body>
 </html>
