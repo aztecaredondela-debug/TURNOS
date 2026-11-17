@@ -1,11 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=14";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=14";
-import { FESTIVOS } from "./festivos.js?v=14";
+import { firebaseConfig } from "./firebase-config.js?v=15";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=15";
+import { FESTIVOS } from "./festivos.js?v=15";
+import { limpiarWhatsApp } from "./texto.js?v=15";
 
-const VERSION = 14;
+const VERSION = 15;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -105,7 +106,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat"; $("viewFest").hidden = tab !== "fest";
+  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat"; $("viewFest").hidden = tab !== "fest"; $("viewCursos").hidden = tab !== "cursos";
   if (tab === "chat") { marcarLeido(); renderChat(); $("chatTxt").focus(); }
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
@@ -146,8 +147,9 @@ function renderFestMes(a, m) {
 
 /* ---------- Modal del día ---------- */
 function abrirDia(f) { modalFecha = f; renderModal(); $("modal").hidden = false; }
-const cerrar = () => { $("modal").hidden = true; modalFecha = null; };
-$("modal").onclick = e => { if (e.target === $("modal")) cerrar(); };
+let modalProtegido = false;
+const cerrar = () => { $("modal").hidden = true; modalFecha = null; modalProtegido = false; };
+$("modal").onclick = e => { if (e.target === $("modal") && !modalProtegido) cerrar(); };
 
 function renderModal() {
   const f = modalFecha, body = $("modalBody"); body.innerHTML = "";
@@ -556,8 +558,72 @@ function renderFest() {
     } }, "✕")))));
 }
 
+/* ---------- Cursos: una etiqueta por curso con sus respuestas (las edita solo el administrador) ---------- */
+let cursos = {};
+const abiertos = new Set(); // cursos desplegados (se conservan al llegar datos nuevos)
+$("cursoBuscar").oninput = () => renderCursos();
+
+function renderCursos() {
+  if (!me || !ops[me]) return;
+  const admin = !!ops[me].admin, cont = $("listaCursos"); cont.innerHTML = "";
+  const q = $("cursoBuscar").value.trim().toLowerCase();
+  if (admin) cont.append(h("button", { class: "btn-sync", style: "margin-bottom:14px", onclick: () => editarCurso(null) }, "➕ Añadir curso"));
+  const lista = Object.entries(cursos)
+    .map(([id, c]) => [id, { nombre: c.nombre ?? "(sin nombre)", texto: c.texto ?? "" }])
+    .filter(([, c]) => !q || c.nombre.toLowerCase().includes(q) || c.texto.toLowerCase().includes(q))
+    .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre, "es"));
+  if (!lista.length) {
+    cont.append(h("div", { class: "vacio" }, q ? "Ningún curso coincide con la búsqueda." : "Todavía no hay cursos." + (admin ? " Pulsa «Añadir curso» para crear el primero." : "")));
+    return;
+  }
+  lista.forEach(([id, c]) => {
+    const abierto = q ? true : abiertos.has(id); // al buscar, se despliegan los que coinciden
+    cont.append(h("div", { class: "curso" },
+      h("div", { class: "curso-cab" },
+        h("button", { class: "curso-tit", "aria-expanded": String(abierto), onclick: () => { abiertos.has(id) ? abiertos.delete(id) : abiertos.add(id); renderCursos(); } },
+          `${abierto ? "▾" : "▸"} ${c.nombre}`),
+        admin ? h("div", { class: "acc" },
+          h("button", { class: "sec", "aria-label": "Editar curso", onclick: () => editarCurso(id) }, "✏️"),
+          h("button", { class: "bad", "aria-label": "Eliminar curso", onclick: () => borrarCurso(id) }, "✕")) : null),
+      abierto ? h("div", { class: "curso-txt" }, c.texto || "(Todavía sin respuestas)") : null));
+  });
+}
+
+function editarCurso(id) { // id === null: curso nuevo
+  const c = id === null ? { nombre: "", texto: "" } : cursos[id];
+  const body = $("modalBody"); body.innerHTML = "";
+  const nombre = h("input", { value: c.nombre ?? "", maxlength: "80", placeholder: "Nombre del curso" });
+  const texto = h("textarea", { class: "area-curso", placeholder: "Pega aquí las respuestas copiadas de WhatsApp" });
+  texto.value = c.texto ?? "";
+  const contador = h("small", { style: "color:#888;display:block;margin:-8px 0 10px" });
+  const actualizar = () => { contador.textContent = `${texto.value.length} de 30000 caracteres`; };
+  texto.oninput = actualizar; actualizar();
+  modalProtegido = true; // no se cierra al tocar fuera, para no perder lo pegado
+  body.append(h("h3", {}, id === null ? "Añadir curso" : "Editar curso"),
+    h("label", {}, "Nombre del curso"), nombre,
+    h("label", {}, "Respuestas"), texto, contador,
+    h("div", { class: "row" }, h("button", { class: "sec", onclick: () => { texto.value = limpiarWhatsApp(texto.value); actualizar(); } }, "🧹 Quitar fechas y nombres de WhatsApp")),
+    h("div", { class: "row" },
+      h("button", { class: "ok", onclick: async () => {
+        if (!nombre.value.trim()) return alert("Pon el nombre del curso.");
+        if (texto.value.length > 30000) return alert("El texto es demasiado largo (máximo 30000 caracteres). Divídelo en dos cursos.");
+        const datos = { nombre: nombre.value.trim(), texto: texto.value.trim() };
+        if (id === null) await push(ref(db, "cursos"), { ...datos, t: Date.now() });
+        else await update(ref(db, "cursos/" + id), datos);
+        cerrar();
+      } }, "Guardar"),
+      h("button", { class: "sec", onclick: () => { if (texto.value === (c.texto ?? "") && nombre.value === (c.nombre ?? "") || confirm("¿Cerrar sin guardar los cambios?")) cerrar(); } }, "Cancelar")));
+  $("modal").hidden = false;
+}
+
+async function borrarCurso(id) {
+  if (!confirm(`¿Eliminar el curso «${cursos[id]?.nombre ?? ""}» y todas sus respuestas?`)) return;
+  abiertos.delete(id);
+  await set(ref(db, "cursos/" + id), null);
+}
+
 /* ---------- Render global y suscripciones ---------- */
-function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); renderFest(); }
+function render() { if (!me || !ops[me]) return; $("quien").textContent = nom(me); renderCal(); renderQuien(); renderChat(); renderSol(); renderAus(); renderEq(); renderFest(); renderCursos(); }
 
 const errLectura = ruta => e => window.mostrarError?.(`No se pueden leer los datos (${ruta}): ${e.message}. Revisa que las reglas de Firebase estén publicadas.`);
 
@@ -576,6 +642,7 @@ function iniciar() {
   onValue(ref(db, "cambios"), s => { cambios = s.val() || {}; render(); }, errLectura("cambios"));
   onValue(ref(db, "ausencias"), s => { ausencias = s.val() || {}; render(); }, errLectura("ausencias"));
   onValue(ref(db, "festivos"), s => { festivosDB = s.val() || {}; render(); }, errLectura("festivos"));
+  onValue(ref(db, "cursos"), s => { cursos = s.val() || {}; render(); }, errLectura("cursos"));
   onValue(ref(db, "solicitudes"), s => { sols = s.val() || {}; render(); }, errLectura("solicitudes"));
   onValue(query(ref(db, "chat"), limitToLast(100)), s => { chat = s.val() || {}; render(); }, errLectura("chat"));
 }
