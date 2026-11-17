@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34370121/README.md)
+[README.md](https://github.com/user-attachments/files/34959187/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -15,6 +15,7 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 
 ## Estructura
 - `ciclo.js`: ciclo de 70 días y cálculo del turno (sin dependencias).
+- `texto.js`: limpia el texto copiado desde WhatsApp (quita fecha, hora y nombre).
 - `festivos.js`: festivos de 2026 con los que arranca la app. A partir de ahí se gestionan desde la pestaña **Festivos** (solo administrador).
 - `app.js`: interfaz y Firebase.
 - `database.rules.json`: reglas de seguridad.
@@ -26,6 +27,7 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 - `cambios/{fecha}/{id}`: turno resultante tras un cambio (`LC` = libre por cambio)
 - `ausencias/{fecha}/{id}`: código del tipo de ausencia (`V` vacaciones, `B` baja, `LD` libre disposición, `FA` familiar, `MA` maternidad/paternidad, `OT` otros). Los tipos se definen en `TIPOS_AUS` de `ciclo.js`
 - `festivos/{fecha}`: texto del festivo (`F`, `F(SAB)`...)
+- `cursos/{id}`: nombre, texto (las respuestas), t. Los edita el administrador; los ven todos.
 - `chat/{id}`: autor, texto, t (hora en milisegundos)
 - `solicitudes/{id}`: fecha, solicitante, estado, ofertas
 - `operarios/{id}/admin`: `true` solo se puede poner a mano desde la consola de Firebase; da acceso a la pestaña Equipo
