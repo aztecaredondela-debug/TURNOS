@@ -90,3 +90,9 @@ button{font-family:inherit}
 .festivo-linea{display:block;background:rgba(255,71,87,.18);border:1px solid #ff4757;border-radius:10px;padding:8px 12px;color:#ff8a95;font-size:.9rem;font-weight:700;margin:6px 0 12px}
 .fest-mes{background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.5);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:.8rem;color:#ff8a95;line-height:1.5}
 .fest-mes b{color:#ff6b7a}
+.curso{margin-bottom:10px}
+.curso-cab{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.curso-tit{flex:1;text-align:left;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px;color:#fff;font-weight:700;font-size:.95rem;cursor:pointer}
+.curso-tit[aria-expanded="true"]{border-color:var(--color-m);color:var(--color-m)}
+.curso-txt{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px;margin-top:6px;font-size:.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.area-curso{height:40vh;min-height:160px}
