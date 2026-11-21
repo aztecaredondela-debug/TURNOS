@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/34959187/README.md)
+[README.md](https://github.com/user-attachments/files/35210816/README.md)
 # Turnos - Mantenimiento
 
 Calendario de turnos para el equipo: cada persona ve su calendario, quién trabaja cada día, deja notas y pide o acepta cambios de turno en tiempo real.
@@ -15,6 +15,8 @@ Web estática (GitHub Pages) + Firebase Realtime Database.
 
 ## Estructura
 - `ciclo.js`: ciclo de 70 días y cálculo del turno (sin dependencias).
+- `combustible.js` y `combustible-logica.js`: pestaña **⛽ Combustible** (mapa, precios y lista de Pontevedra).
+- `.github/workflows/combustible.yml`: programa de GitHub que cada 3 horas descarga los precios del Ministerio y los guarda en `data/combustible-36.json`.
 - `texto.js`: limpia el texto copiado desde WhatsApp (quita fecha, hora y nombre).
 - `festivos.js`: festivos de 2026 con los que arranca la app. A partir de ahí se gestionan desde la pestaña **Festivos** (solo administrador).
 - `app.js`: interfaz y Firebase.
