@@ -1,0 +1,33 @@
+name: Actualizar precios de combustible
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # cada 3 horas
+  workflow_dispatch:          # también se puede lanzar a mano (Actions > Run workflow)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: combustible
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar precios del Ministerio (Pontevedra)
+        run: python3 scripts/actualizar_combustible.py
+      - name: Guardar si ha cambiado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/combustible-36.json
+          if git diff --cached --quiet; then
+            echo "Sin cambios en los precios."
+          else
+            git commit -m "Actualizar precios de combustible"
+            git push
+          fi
