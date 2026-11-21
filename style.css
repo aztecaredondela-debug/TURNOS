@@ -96,3 +96,27 @@ button{font-family:inherit}
 .curso-tit[aria-expanded="true"]{border-color:var(--color-m);color:var(--color-m)}
 .curso-txt{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px;margin-top:6px;font-size:.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .area-curso{height:40vh;min-height:160px}
+.chips-comb{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip-comb{flex:1 1 calc(50% - 6px);padding:12px 6px;background:#21262d;border:2px solid transparent;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
+.chip-comb.on{border-color:var(--color-libre);color:var(--color-libre)}
+.busca-comb{display:flex;gap:8px;margin-bottom:10px}
+.busca-comb input{flex:1;margin-bottom:0}
+.busca-comb .sec{border:none;border-radius:8px;padding:0 14px;cursor:pointer;font-size:1.1rem}
+.titular-comb{font-style:italic;font-size:.9rem;line-height:1.45;margin:10px 0}
+#combMapa{height:380px;border-radius:12px;position:relative;z-index:0;isolation:isolate;margin:10px 0 6px}
+.pm-wrap,.cl-wrap{background:none;border:none}
+.pm{display:inline-block;padding:2px 6px;border-radius:4px;font-weight:700;font-size:.78rem;color:#fff;border:1px solid rgba(255,255,255,.8);white-space:nowrap;text-align:center}
+.pm.rest{border-style:dashed}
+.pm.bajo,.precio.bajo,.cl.bajo{background:#27ae60}
+.pm.medio,.precio.medio,.cl.medio{background:#f39c12}
+.pm.alto,.precio.alto,.cl.alto{background:#e74c3c}
+.cl{width:46px;height:46px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.35)}
+.cl b{font-size:.95rem;line-height:1}
+.cl small{font-size:.6rem;line-height:1.1}
+.act-comb{font-size:.8rem;color:#aaa;margin:6px 0 12px}
+.fila-comb{display:grid;grid-template-columns:1fr 84px 56px;gap:8px;align-items:center;width:100%;text-align:left;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px;margin-bottom:6px;color:#fff;cursor:pointer;font-size:.9rem}
+.fila-comb .dir small{display:block;color:#aaa;font-size:.75rem;margin-top:2px}
+.fila-comb .precio{color:#fff;font-weight:800;font-size:1.05rem;text-align:center;border-radius:6px;padding:8px 0}
+.fila-comb .dist{font-size:.8rem;color:#aaa;text-align:right}
+.popup-comb{font-size:.85rem;line-height:1.4}
+.popup-comb .p-precio{font-weight:700;margin:4px 0}
