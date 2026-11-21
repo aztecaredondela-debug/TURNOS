@@ -1,17 +1,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, set, push, update, onValue, runTransaction, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js?v=15";
-import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=15";
-import { FESTIVOS } from "./festivos.js?v=15";
-import { limpiarWhatsApp } from "./texto.js?v=15";
+import { firebaseConfig } from "./firebase-config.js?v=16";
+import { CICLO, DIAS, iso, hoyIso, turnoCiclo, esLibre, tipoTurno, trabaja, rango, dayNum, TIPOS_AUS, sumaDias, TIPOS_TURNO, lunesDe, GRUPOS, grupoDe, tiposDe, cicloDe } from "./ciclo.js?v=16";
+import { FESTIVOS } from "./festivos.js?v=16";
+import { limpiarWhatsApp } from "./texto.js?v=16";
+import { crearCombustible } from "./combustible.js?v=16";
 
-const VERSION = 15;
+const VERSION = 16;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const $ = id => document.getElementById(id);
 $("ver").textContent = "Versión " + VERSION;
+const comb = crearCombustible(h, $("viewComb")); // pestaña Combustible (el mapa se carga al abrirla)
 
 // Crea elementos con textContent/append: el texto de otros usuarios nunca se interpreta como HTML
 function h(tag, props = {}, ...kids) {
@@ -106,7 +108,7 @@ $("btnSalir").onclick = () => { localStorage.removeItem("turnos_me"); location.r
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat"; $("viewFest").hidden = tab !== "fest"; $("viewCursos").hidden = tab !== "cursos";
+  $("viewCal").hidden = tab !== "cal"; $("viewQuien").hidden = tab !== "quien"; $("viewSol").hidden = tab !== "sol"; $("viewAus").hidden = tab !== "aus"; $("viewEq").hidden = tab !== "eq"; $("viewChat").hidden = tab !== "chat"; $("viewFest").hidden = tab !== "fest"; $("viewCursos").hidden = tab !== "cursos"; $("viewComb").hidden = tab !== "comb"; if (tab === "comb") comb.activar();
   if (tab === "chat") { marcarLeido(); renderChat(); $("chatTxt").focus(); }
 });
 $("prev").onclick = () => { view.setDate(1); view.setMonth(view.getMonth() - 1); render(); };
